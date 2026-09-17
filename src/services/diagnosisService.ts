@@ -1,22 +1,19 @@
 import type { DiagnosisResult } from '../types';
-import { MOCK_DIAGNOSIS } from '../data';
 
 /**
- * Mock diagnosis service.
- * Replace `analyzeCropImage` with a real API call when your ML backend is ready.
+ * Diagnosis service — calls the FastAPI backend at /api/v1/diagnose.
  *
- * Example backends:
- *   - FastAPI + TensorFlow/PyTorch
- *   - Google Vertex AI
- *   - AWS SageMaker
- *   - Azure Custom Vision
- *   - ONNX Runtime (edge)
+ * During local development, Vite proxies /api → http://localhost:8000
+ * so no CORS issues arise.  In production, set VITE_API_BASE to your
+ * deployed API URL (e.g. https://api.smartfarmer.ai).
  */
+
+const API_BASE = import.meta.env.VITE_API_BASE ?? '';
 
 export interface AnalysisRequest {
   image: File | Blob | string; // File object, Blob, or base64 data URL
   cropHint?: string;           // Optional: helps narrow model selection
-  locationHint?: string;       // Optional: country/region for localized guidance
+  locationHint?: string;       // Optional: country/region for localised guidance
 }
 
 export interface AnalysisError {
@@ -25,59 +22,88 @@ export interface AnalysisError {
   userMessage: string;
 }
 
-const SIMULATED_DELAY_MS = 2800;
-
 /**
  * Analyze a crop image and return a diagnosis result.
- * Currently returns realistic mock data after a simulated delay.
- * Swap the implementation below with your real API call.
+ * Sends the image to POST /api/v1/diagnose and returns the parsed JSON.
  */
 export async function analyzeCropImage(
-  _request: AnalysisRequest
+  request: AnalysisRequest
 ): Promise<DiagnosisResult> {
-  // Simulate network + inference latency
-  await new Promise((resolve) => setTimeout(resolve, SIMULATED_DELAY_MS));
+  const formData = new FormData();
 
-  // TODO: Replace mock with real API call:
-  //
-  // const formData = new FormData();
-  // formData.append('image', request.image);
-  // if (request.cropHint) formData.append('crop', request.cropHint);
-  //
-  // const response = await fetch('/api/v1/diagnose', {
-  //   method: 'POST',
-  //   body: formData,
-  // });
-  //
-  // if (!response.ok) throw new ApiError(response);
-  // return response.json() as Promise<DiagnosisResult>;
+  if (typeof request.image === 'string') {
+    // Frontend sends a base64 data URL from FileReader — pass it as a form field
+    formData.append('image_b64', request.image);
+  } else {
+    // File or Blob object — multipart upload
+    formData.append('image', request.image);
+  }
 
+  if (request.cropHint)     formData.append('crop',     request.cropHint);
+  if (request.locationHint) formData.append('location', request.locationHint);
+
+  let response: Response;
+  try {
+    response = await fetch(`${API_BASE}/api/v1/diagnose`, {
+      method: 'POST',
+      body: formData,
+    });
+  } catch {
+    throw buildError(
+      'NETWORK',
+      'Network request failed.',
+      'Unable to reach the analysis server. Check your internet connection and try again.'
+    );
+  }
+
+  if (!response.ok) {
+    const detail = await response.json().catch(() => ({ detail: 'Unknown error' }));
+    const msg = detail?.detail ?? `Server error ${response.status}`;
+
+    if (response.status === 503) {
+      throw buildError('SERVER', msg, 'The AI model is not ready yet. Please try again shortly.');
+    }
+    if (response.status === 413) {
+      throw buildError('IMAGE_QUALITY', msg, 'Image is too large. Please use an image under 10 MB.');
+    }
+    throw buildError('SERVER', msg, "We couldn't analyze this image. Try a clearer photo in good lighting.");
+  }
+
+  const result = (await response.json()) as DiagnosisResult;
+
+  // Attach a timestamp if the server didn't include one
   return {
-    ...MOCK_DIAGNOSIS,
-    timestamp: new Date(),
+    ...result,
+    timestamp: result.timestamp ? new Date(result.timestamp) : new Date(),
   };
 }
 
 /**
- * Validate that an image file is suitable for analysis.
+ * Validate that an image file is suitable for analysis before uploading.
  */
 export function validateImage(file: File): { valid: boolean; error?: string } {
   const SUPPORTED_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/heic'];
   const MAX_SIZE_MB = 10;
 
   if (!SUPPORTED_TYPES.includes(file.type)) {
-    return {
-      valid: false,
-      error: 'Please use a JPEG, PNG, or WebP image.',
-    };
+    return { valid: false, error: 'Please use a JPEG, PNG, or WebP image.' };
   }
 
   if (file.size > MAX_SIZE_MB * 1024 * 1024) {
-    return {
-      valid: false,
-      error: `Image must be smaller than ${MAX_SIZE_MB}MB.`,
-    };
+    return { valid: false, error: `Image must be smaller than ${MAX_SIZE_MB} MB.` };
   }
 
   return { valid: true };
+}
+
+// ─── Internal helper ─────────────────────────────────────────────────────────
+function buildError(
+  code: AnalysisError['code'],
+  message: string,
+  userMessage: string
+): Error & { code: string; userMessage: string } {
+  const err = new Error(message) as Error & { code: string; userMessage: string };
+  err.code = code;
+  err.userMessage = userMessage;
+  return err;
 }

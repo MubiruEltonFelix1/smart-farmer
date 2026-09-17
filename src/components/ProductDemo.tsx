@@ -32,9 +32,13 @@ export default function ProductDemo() {
       const res = await analyzeCropImage({ image: preview });
       clearInterval(interval); setProgress(100);
       setTimeout(() => { setResult(res); setState('result'); }, 400);
-    } catch {
+    } catch (err: unknown) {
       clearInterval(interval);
-      setError("We couldn't analyze this image. Try taking a clearer photo of the leaf in good lighting.");
+      const userMessage =
+        err instanceof Error && 'userMessage' in err
+          ? (err as Error & { userMessage: string }).userMessage
+          : "We couldn't analyze this image. Try taking a clearer photo of the leaf in good lighting.";
+      setError(userMessage);
       setState('error');
     }
   };
