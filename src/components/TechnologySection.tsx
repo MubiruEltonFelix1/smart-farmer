@@ -1,7 +1,7 @@
 import {
   IconEye, IconBrain, IconRefresh, IconGlobe,
   IconCpu, IconDatabase, IconLeaf, IconSmartphone,
-  IconThermometer, IconDroplets, IconCalendar, IconActivity,
+  IconDroplets, IconCalendar, IconActivity,
   IconMap, IconLayers, IconSun, IconMapPin,
 } from './Icons';
 

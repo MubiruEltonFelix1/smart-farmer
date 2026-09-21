@@ -27,7 +27,7 @@ load_dotenv()
 # ─── Config ──────────────────────────────────────────────────────────────────
 MODEL_PATH = os.getenv(
     "MODEL_PATH",
-    str(Path(__file__).parent / "model" / "cassava.onnx"),
+    str(Path(__file__).parent / "model" / "plantvillage.onnx"),
 )
 
 # Origins allowed to call the API.
@@ -46,7 +46,7 @@ async def lifespan(app: FastAPI):
         print(
             f"\n⚠️  Model file not found at: {MODEL_PATH}"
             "\n   The server will start but /api/v1/diagnose will return 503"
-            "\n   until you place cassava.onnx in backend/model/\n"
+            "\n   until you place plantvillage.onnx in backend/model/\n"
         )
         app.state.session = None
     else:
@@ -103,7 +103,7 @@ async def diagnose(
     if app.state.session is None:
         raise HTTPException(
             status_code=503,
-            detail="Model not loaded. Place cassava.onnx in backend/model/ and restart.",
+            detail="Model not loaded. Place plantvillage.onnx in backend/model/ and restart.",
         )
 
     # ── Read raw image bytes ──────────────────────────────────────────────────
