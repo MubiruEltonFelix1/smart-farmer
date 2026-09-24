@@ -5,6 +5,16 @@ import { IconUpload, IconSearch, IconClose, IconInfo, IconBrain, IconCheck, Icon
 
 type DemoState = 'idle' | 'preview' | 'analyzing' | 'result' | 'error';
 
+/**
+ * Sample photo for the "Use Demo Image" button.
+ *
+ * No such file ships in this repository yet. Until one is placed at
+ * `public/demo-leaf.jpg` the button reports a clear error rather than posting a
+ * broken request. Drop any leaf photo (JPEG, PNG or WebP) at that path to
+ * enable it.
+ */
+const DEMO_IMAGE_PATH = '/demo-leaf.jpg';
+
 export default function ProductDemo() {
   const [state,   setState]   = useState<DemoState>('idle');
   const [preview, setPreview] = useState<string | null>(null);
@@ -54,7 +64,29 @@ export default function ProductDemo() {
     if (fileInputRef.current) fileInputRef.current.value = '';
   };
 
-  const useDemoImage = () => { setPreview('/cassava-demo.jpg'); setState('preview'); };
+  /**
+   * Load the sample leaf photo from public/ (see the note on DEMO_IMAGE_PATH —
+   * the file is not shipped yet).
+   *
+   * `preview` is handed to the API as a base64 data URL, so the sample has to be
+   * fetched and converted here. Pointing `preview` straight at the public path
+   * would post the literal string "/demo-leaf.jpg" as if it were base64, and the
+   * backend would reject it as invalid image data.
+   */
+  const loadDemoImage = async () => {
+    try {
+      const res = await fetch(DEMO_IMAGE_PATH);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const blob = await res.blob();
+      const reader = new FileReader();
+      reader.onload  = (e) => { setPreview(e.target?.result as string); setState('preview'); };
+      reader.onerror = () => { setError('Could not read the sample image.'); setState('error'); };
+      reader.readAsDataURL(blob);
+    } catch {
+      setError('The sample image is missing from this build. Please upload your own leaf photo.');
+      setState('error');
+    }
+  };
 
   const severityColor = (s: string) => {
     if (s === 'Healthy')  return 'var(--color-green)';
@@ -99,7 +131,7 @@ export default function ProductDemo() {
                   <button className="btn btn--primary" onClick={(e) => { e.stopPropagation(); fileInputRef.current?.click(); }}>
                     Upload Image
                   </button>
-                  <button className="btn btn--ghost" onClick={(e) => { e.stopPropagation(); useDemoImage(); }}>
+                  <button className="btn btn--ghost" onClick={(e) => { e.stopPropagation(); loadDemoImage(); }}>
                     Use Demo Image
                   </button>
                 </div>
