@@ -1,0 +1,21 @@
+# Optional dependencies for the LOCAL ONNX diagnosis provider.
+#
+# You only need these if you plan to run inference on this machine with
+# DIAGNOSIS_PROVIDER=onnx. The default engine is Amazon Bedrock, which needs
+# none of this — it talks to AWS over the network instead of loading a file.
+#
+#   pip install -r backend/requirements-onnx.txt
+#
+# You will also need an actual model file. backend/train/train.py fine-tunes
+# EfficientNet-B0 on the PlantVillage dataset and exports plantvillage.onnx,
+# but that script needs its own heavier dependencies (torch, torchvision,
+# timm) which are deliberately not listed here since training is normally done
+# once, elsewhere, and not on the box serving requests.
+
+-r requirements.txt
+
+# Pins verified against Python 3.14. onnxruntime 1.20.1 (the previously pinned
+# version) predates Python 3.14 and has no wheel for it, so it would fail to
+# install; 1.30.0 is the first line that ships cp314 wheels.
+onnxruntime==1.30.0
+numpy==2.4.2
