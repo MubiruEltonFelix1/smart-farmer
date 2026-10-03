@@ -24,12 +24,14 @@ Run locally:
 import base64
 import importlib
 import os
+import secrets
 import sys
 from contextlib import asynccontextmanager
 
 from dotenv import load_dotenv
-from fastapi import FastAPI, File, Form, HTTPException, UploadFile
+from fastapi import Depends, FastAPI, File, Form, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.security import APIKeyHeader
 from starlette.concurrency import run_in_threadpool
 
 # Windows consoles default to a legacy code page (cp1252 in most locales). A log
@@ -56,6 +58,45 @@ ALLOWED_ORIGINS = os.getenv(
 ).split(",")
 
 MAX_BYTES = 10 * 1024 * 1024  # 10 MB
+
+# ─── API key ─────────────────────────────────────────────────────────────────
+# A shared secret required on /api/v1/diagnose. Leave it unset and the check is
+# skipped, so local development needs no configuration.
+#
+# Be clear-eyed about what this does and does not buy you. The frontend ships the
+# key inside its JavaScript bundle, so anyone who reads the bundle can extract
+# it. It therefore stops URL-pasting, scanners and drive-by abuse; it does not
+# stop a determined person. The real ceilings on cost are Lambda reserved
+# concurrency and API Gateway throttling, not this.
+#
+# Genuine authentication is not possible here without users to authenticate
+# against. If the product grows a login, replace this with Cognito or another
+# OIDC provider.
+API_KEY = os.getenv("API_KEY", "").strip()
+
+# auto_error=False so the handler below decides the response, rather than
+# FastAPI returning its own shape before our code runs. Declaring it as a
+# security scheme also gives the /docs page an Authorize button, which is how
+# you will test this endpoint by hand.
+_api_key_header = APIKeyHeader(name="X-API-Key", auto_error=False)
+
+
+async def require_api_key(key: str | None = Depends(_api_key_header)) -> None:
+    """
+    FastAPI dependency enforcing the shared-secret header, when one is configured.
+
+    compare_digest is used rather than == so the comparison takes the same time
+    regardless of how many leading characters match, which avoids leaking the
+    key one byte at a time through response timing.
+    """
+    if not API_KEY:
+        return  # not configured: open, which is the local development default
+    if not key or not secrets.compare_digest(key, API_KEY):
+        raise HTTPException(
+            status_code=401,
+            detail="Invalid or missing API key.",
+            headers={"WWW-Authenticate": "ApiKey"},
+        )
 
 
 def _load_provider():
@@ -145,7 +186,9 @@ def health():
 
 
 # ─── Diagnose ────────────────────────────────────────────────────────────────
-@app.post("/api/v1/diagnose")
+# /api/v1/health is deliberately left open so uptime checks and your own
+# "is it deployed?" checks work without the key. It reveals nothing sensitive.
+@app.post("/api/v1/diagnose", dependencies=[Depends(require_api_key)])
 async def diagnose(
     image: UploadFile | None = File(default=None),
     image_b64: str | None = Form(default=None),

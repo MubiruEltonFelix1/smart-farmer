@@ -1,29 +1,47 @@
 import { useState, useRef } from 'react';
 import { analyzeCropImage, validateImage } from '../services/diagnosisService';
 import type { DiagnosisResult } from '../types';
-import { IconUpload, IconSearch, IconClose, IconInfo, IconBrain, IconCheck, IconWarning } from './Icons';
+import {
+  IconUpload, IconSearch, IconClose, IconInfo,
+  IconBrain, IconCheck, IconWarning,
+} from './Icons';
+import { TRANSLATIONS, LOCALE_LABELS, type Locale } from '../i18n/translations';
 
 type DemoState = 'idle' | 'preview' | 'analyzing' | 'result' | 'error';
 
-/**
- * Sample photo for the "Use Demo Image" button.
- *
- * No such file ships in this repository yet. Until one is placed at
- * `public/demo-leaf.jpg` the button reports a clear error rather than posting a
- * broken request. Drop any leaf photo (JPEG, PNG or WebP) at that path to
- * enable it.
- */
 const DEMO_IMAGE_PATH = '/demo-leaf.jpg';
 
-export default function ProductDemo() {
-  const [state,   setState]   = useState<DemoState>('idle');
-  const [preview, setPreview] = useState<string | null>(null);
-  const [result,  setResult]  = useState<DiagnosisResult | null>(null);
-  const [error,   setError]   = useState<string>('');
-  const [progress,setProgress]= useState(0);
-  const fileInputRef = useRef<HTMLInputElement>(null);
+// Camera icon (inline — avoids adding another Icons export for one symbol)
+function IconCamera({ size = 20 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none"
+      stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
+      aria-hidden="true">
+      <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z" />
+      <circle cx="12" cy="13" r="4" />
+    </svg>
+  );
+}
 
-  const handleFile = async (file: File) => {
+interface Props {
+  locale: Locale;
+  onLocaleChange: (l: Locale) => void;
+}
+
+export default function ProductDemo({ locale, onLocaleChange }: Props) {
+  const [state,    setState]    = useState<DemoState>('idle');
+  const [preview,  setPreview]  = useState<string | null>(null);
+  const [result,   setResult]   = useState<DiagnosisResult | null>(null);
+  const [error,    setError]    = useState<string>('');
+  const [progress, setProgress] = useState(0);
+
+  const fileInputRef   = useRef<HTMLInputElement>(null);
+  const cameraInputRef = useRef<HTMLInputElement>(null);
+
+  const t = TRANSLATIONS[locale];
+
+  // ── file handling ─────────────────────────────────────────────────────────
+  const handleFile = (file: File) => {
     const v = validateImage(file);
     if (!v.valid) { setError(v.error ?? 'Invalid image.'); setState('error'); return; }
     const reader = new FileReader();
@@ -61,18 +79,10 @@ export default function ProductDemo() {
 
   const reset = () => {
     setState('idle'); setPreview(null); setResult(null); setError(''); setProgress(0);
-    if (fileInputRef.current) fileInputRef.current.value = '';
+    if (fileInputRef.current)   fileInputRef.current.value   = '';
+    if (cameraInputRef.current) cameraInputRef.current.value = '';
   };
 
-  /**
-   * Load the sample leaf photo from public/ (see the note on DEMO_IMAGE_PATH —
-   * the file is not shipped yet).
-   *
-   * `preview` is handed to the API as a base64 data URL, so the sample has to be
-   * fetched and converted here. Pointing `preview` straight at the public path
-   * would post the literal string "/demo-leaf.jpg" as if it were base64, and the
-   * backend would reject it as invalid image data.
-   */
   const loadDemoImage = async () => {
     try {
       const res = await fetch(DEMO_IMAGE_PATH);
@@ -95,148 +105,217 @@ export default function ProductDemo() {
     return 'var(--color-rust)';
   };
 
+  // ── render ─────────────────────────────────────────────────────────────────
   return (
-    <section className="section demo-section" id="demo" aria-labelledby="demo-heading">
+    <section className="section diag-section" id="demo" aria-labelledby="diag-heading">
       <div className="container">
-        <div className="section__label">PRODUCT DEMO</div>
-        <h2 id="demo-heading" className="section__title">From leaf photo to farming decision.</h2>
-        <p className="section__subtitle">
-          Try the AI diagnosis experience. Upload a crop leaf photo to see how Smart Farmer analyzes it.
-        </p>
 
-        <div className="demo-wrapper">
-          <div className="demo-panel">
+        {/* ── Language switcher ── */}
+        <div className="lang-switcher" role="group" aria-label={t.languageLabel}>
+          <span className="lang-switcher__label">{t.languageLabel}:</span>
+          {(Object.keys(LOCALE_LABELS) as Locale[]).map((loc) => (
+            <button
+              key={loc}
+              className={`lang-btn${locale === loc ? ' lang-btn--active' : ''}`}
+              onClick={() => onLocaleChange(loc)}
+              aria-pressed={locale === loc}
+            >
+              {LOCALE_LABELS[loc]}
+            </button>
+          ))}
+        </div>
 
-            {/* IDLE */}
+        {/* ── Page hero ── */}
+        <div className="diag-hero">
+          <h1 id="diag-heading" className="diag-hero__title">{t.heroTitle}</h1>
+          <p className="diag-hero__sub">{t.heroSubtitle}</p>
+        </div>
+
+        {/* ── Main card ── */}
+        <div className="diag-wrapper">
+
+          {/* Left: upload / states */}
+          <div className="diag-panel">
+
+            {/* Hidden file inputs */}
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/jpeg,image/png,image/webp"
+              className="sr-only"
+              aria-label="Choose crop image file"
+              onChange={(e) => e.target.files?.[0] && handleFile(e.target.files[0])}
+            />
+            {/* capture="environment" opens the rear camera on mobile */}
+            <input
+              ref={cameraInputRef}
+              type="file"
+              accept="image/jpeg,image/png,image/webp"
+              capture="environment"
+              className="sr-only"
+              aria-label="Take a photo"
+              onChange={(e) => e.target.files?.[0] && handleFile(e.target.files[0])}
+            />
+
+            {/* IDLE — upload box */}
             {state === 'idle' && (
               <div
-                className="demo-dropzone"
+                className="diag-dropzone"
                 onDrop={handleDrop}
                 onDragOver={(e) => e.preventDefault()}
-                role="button" tabIndex={0}
-                aria-label="Upload crop image"
+                role="button"
+                tabIndex={0}
+                aria-label={t.uploadTitle}
                 onKeyDown={(e) => e.key === 'Enter' && fileInputRef.current?.click()}
                 onClick={() => fileInputRef.current?.click()}
               >
-                <input
-                  ref={fileInputRef} type="file"
-                  accept="image/jpeg,image/png,image/webp"
-                  className="sr-only" aria-label="Choose crop image file"
-                  onChange={(e) => e.target.files?.[0] && handleFile(e.target.files[0])}
-                />
-                <div className="demo-dropzone__icon" aria-hidden="true"><IconUpload size={48} /></div>
-                <p className="demo-dropzone__title">Upload a crop leaf photo</p>
-                <p className="demo-dropzone__sub">Drag and drop, or click to choose</p>
-                <div className="demo-dropzone__btns">
-                  <button className="btn btn--primary" onClick={(e) => { e.stopPropagation(); fileInputRef.current?.click(); }}>
-                    Upload Image
+                <div className="diag-dropzone__icon" aria-hidden="true">
+                  <IconUpload size={48} />
+                </div>
+                <p className="diag-dropzone__title">{t.uploadTitle}</p>
+                <p className="diag-dropzone__sub">{t.uploadSub}</p>
+
+                <div className="diag-dropzone__btns">
+                  <button
+                    className="btn btn--primary diag-btn-upload"
+                    onClick={(e) => { e.stopPropagation(); fileInputRef.current?.click(); }}
+                  >
+                    <IconUpload size={16} />
+                    {t.btnUpload}
                   </button>
-                  <button className="btn btn--ghost" onClick={(e) => { e.stopPropagation(); loadDemoImage(); }}>
-                    Use Demo Image
+                  <button
+                    className="btn btn--secondary diag-btn-camera"
+                    onClick={(e) => { e.stopPropagation(); cameraInputRef.current?.click(); }}
+                  >
+                    <IconCamera size={16} />
+                    {t.btnTakePhoto}
+                  </button>
+                  <button
+                    className="btn btn--ghost"
+                    onClick={(e) => { e.stopPropagation(); loadDemoImage(); }}
+                  >
+                    {t.btnDemoImage}
                   </button>
                 </div>
-                <p className="demo-dropzone__note">JPEG, PNG or WebP · Max 10 MB</p>
+
+                <p className="diag-dropzone__note">{t.uploadNote}</p>
               </div>
             )}
 
             {/* PREVIEW */}
             {state === 'preview' && preview && (
-              <div className="demo-preview">
-                <div className="demo-preview__img-wrap">
-                  <img src={preview} alt="Uploaded crop leaf" className="demo-preview__img" />
-                  <button className="demo-preview__remove" onClick={reset} aria-label="Remove image">
+              <div className="diag-preview">
+                <div className="diag-preview__img-wrap">
+                  <img src={preview} alt="Uploaded crop leaf" className="diag-preview__img" />
+                  <button className="diag-preview__remove" onClick={reset} aria-label="Remove image">
                     <IconClose size={16} />
                   </button>
                 </div>
-                <div className="demo-preview__actions">
-                  <p className="demo-preview__ready">Image ready for analysis</p>
+                <div className="diag-preview__actions">
+                  <p className="diag-preview__ready">{t.imageReady}</p>
                   <button className="btn btn--primary btn--large" onClick={handleAnalyze}>
                     <IconSearch size={16} />
-                    Analyze Crop
+                    {t.btnAnalyze}
                   </button>
-                  <button className="btn btn--ghost" onClick={reset}>Choose different image</button>
+                  <button className="btn btn--ghost" onClick={reset}>
+                    {t.btnChooseDifferent}
+                  </button>
                 </div>
               </div>
             )}
 
             {/* ANALYZING */}
             {state === 'analyzing' && (
-              <div className="demo-analyzing">
-                <div className="demo-analyzing__animation" aria-hidden="true">
+              <div className="diag-analyzing">
+                <div className="diag-analyzing__animation" aria-hidden="true">
                   <div className="scan-rings">
-                    <div className="scan-ring scan-ring--1" /><div className="scan-ring scan-ring--2" /><div className="scan-ring scan-ring--3" />
+                    <div className="scan-ring scan-ring--1" />
+                    <div className="scan-ring scan-ring--2" />
+                    <div className="scan-ring scan-ring--3" />
                     <span className="scan-rings__center"><IconBrain size={24} /></span>
                   </div>
                 </div>
-                <p className="demo-analyzing__title">Analyzing crop…</p>
-                <p className="demo-analyzing__sub">AI is examining leaf patterns and visual symptoms</p>
-                <div className="demo-progress" role="progressbar" aria-valuenow={Math.round(progress)} aria-valuemin={0} aria-valuemax={100} aria-label="Analysis progress">
-                  <div className="demo-progress__fill" style={{ width: `${Math.min(progress, 100)}%` }} />
+                <p className="diag-analyzing__title">{t.analyzingTitle}</p>
+                <p className="diag-analyzing__sub">{t.analyzingSub}</p>
+                <div
+                  className="diag-progress"
+                  role="progressbar"
+                  aria-valuenow={Math.round(progress)}
+                  aria-valuemin={0}
+                  aria-valuemax={100}
+                  aria-label="Analysis progress"
+                >
+                  <div className="diag-progress__fill" style={{ width: `${Math.min(progress, 100)}%` }} />
                 </div>
-                <p className="demo-analyzing__pct">{Math.round(Math.min(progress, 100))}%</p>
+                <p className="diag-analyzing__pct">{Math.round(Math.min(progress, 100))}%</p>
               </div>
             )}
 
             {/* RESULT */}
             {state === 'result' && result && (
-              <div className="demo-result">
-                <div className="demo-result__header">
-                  <div className="demo-result__crop-badge"><span>{result.crop}</span></div>
-                  <div className="demo-result__status" style={{ color: result.severity === 'Healthy' ? 'var(--color-green)' : 'var(--color-gold)' }}>
+              <div className="diag-result">
+                <div className="diag-result__header">
+                  <div className="diag-result__crop-badge"><span>{result.crop}</span></div>
+                  <div className="diag-result__status"
+                    style={{ color: result.severity === 'Healthy' ? 'var(--color-green)' : 'var(--color-gold)' }}>
                     {result.status}
                   </div>
                 </div>
-                <h3 className="demo-result__condition">{result.disease}</h3>
-                <div className="demo-result__metrics">
-                  <div className="demo-result__metric">
-                    <span className="demo-result__metric-val">{result.confidence}%</span>
-                    <span className="demo-result__metric-label">Confidence</span>
+                <h3 className="diag-result__condition">{result.disease}</h3>
+                <div className="diag-result__metrics">
+                  <div className="diag-result__metric">
+                    <span className="diag-result__metric-val">{result.confidence}%</span>
+                    <span className="diag-result__metric-label">{t.confidence}</span>
                   </div>
-                  <div className="demo-result__metric">
-                    <span className="demo-result__metric-val" style={{ color: severityColor(result.severity) }}>{result.severity}</span>
-                    <span className="demo-result__metric-label">Severity</span>
+                  <div className="diag-result__metric">
+                    <span className="diag-result__metric-val" style={{ color: severityColor(result.severity) }}>
+                      {result.severity}
+                    </span>
+                    <span className="diag-result__metric-label">{t.severity}</span>
                   </div>
                 </div>
-                <div className="demo-result__confidence-bar">
-                  <div className="demo-result__confidence-fill" style={{ width: `${result.confidence}%` }} />
+                <div className="diag-result__confidence-bar">
+                  <div className="diag-result__confidence-fill" style={{ width: `${result.confidence}%` }} />
                 </div>
-                <div className="demo-result__recs">
-                  <p className="demo-result__recs-title">Recommended actions</p>
-                  <ol className="demo-result__recs-list">
+                <div className="diag-result__recs">
+                  <p className="diag-result__recs-title">{t.recommendedActions}</p>
+                  <ol className="diag-result__recs-list">
                     {result.recommendations.map((r, i) => <li key={i}>{r}</li>)}
                   </ol>
                 </div>
-                <p className="demo-result__disclaimer">
+                <p className="diag-result__disclaimer">
                   <IconInfo size={13} />
-                  AI-generated assessment — verify important decisions with local agricultural expertise.
+                  {t.disclaimer}
                 </p>
-                <button className="btn btn--ghost demo-result__reset" onClick={reset}>Analyze another crop</button>
+                <button className="btn btn--ghost diag-result__reset" onClick={reset}>
+                  {t.btnAnalyzeAnother}
+                </button>
               </div>
             )}
 
             {/* ERROR */}
             {state === 'error' && (
-              <div className="demo-error">
-                <div className="demo-error__icon" aria-hidden="true"><IconWarning size={40} /></div>
-                <p className="demo-error__title">Couldn't complete the analysis</p>
-                <p className="demo-error__msg">{error}</p>
-                <button className="btn btn--primary" onClick={reset}>Try Again</button>
+              <div className="diag-error">
+                <div className="diag-error__icon" aria-hidden="true"><IconWarning size={40} /></div>
+                <p className="diag-error__title">{t.errorTitle}</p>
+                <p className="diag-error__msg">{error}</p>
+                <button className="btn btn--primary" onClick={reset}>{t.btnTryAgain}</button>
               </div>
             )}
           </div>
 
-          {/* Side info */}
-          <div className="demo-info">
-            <h3 className="demo-info__title">What the AI looks for</h3>
-            <ul className="demo-info__list">
+          {/* Right: tips panel */}
+          <div className="diag-info">
+            <h3 className="diag-info__title">{t.whatAILooksFor}</h3>
+            <ul className="diag-info__list">
               {[
-                { color: '#c1440e', title: 'Leaf discoloration',  desc: 'Yellowing, browning, or unusual color patterns' },
-                { color: '#d4a017', title: 'Lesion patterns',     desc: 'Spots, streaks, or necrotic areas on the leaf surface' },
-                { color: '#2d6a4f', title: 'Texture changes',     desc: 'Mosaic patterns, distortion, or unusual surface texture' },
-                { color: '#7f4f24', title: 'Structural damage',   desc: 'Wilting, curling, or deformation of leaf structure' },
+                { color: '#c1440e', title: t.leafDiscolouration,  desc: t.leafDiscolourationDesc },
+                { color: '#d4a017', title: t.lesionPatterns,      desc: t.lesionPatternsDesc },
+                { color: '#2d6a4f', title: t.textureChanges,      desc: t.textureChangesDesc },
+                { color: '#7f4f24', title: t.structuralDamage,    desc: t.structuralDamageDesc },
               ].map((item) => (
                 <li key={item.title}>
-                  <span className="demo-info__dot" style={{ background: item.color }} aria-hidden="true" />
+                  <span className="diag-info__dot" style={{ background: item.color }} aria-hidden="true" />
                   <div>
                     <strong>{item.title}</strong>
                     <p>{item.desc}</p>
@@ -244,11 +323,11 @@ export default function ProductDemo() {
                 </li>
               ))}
             </ul>
-            <div className="demo-info__tip">
-              <strong>Tips for better results</strong>
+            <div className="diag-info__tip">
+              <strong>{t.tipsTitle}</strong>
               <ul>
-                {['Use natural daylight, not flash', 'Focus on the most affected leaf', 'Fill the frame with the leaf', 'Avoid blurry or dark images'].map((t) => (
-                  <li key={t}><IconCheck size={12} className="demo-info__check" />{t}</li>
+                {[t.tip1, t.tip2, t.tip3, t.tip4].map((tip) => (
+                  <li key={tip}><IconCheck size={12} className="diag-info__check" />{tip}</li>
                 ))}
               </ul>
             </div>

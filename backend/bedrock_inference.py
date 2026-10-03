@@ -288,19 +288,26 @@ def _coerce_confidence(raw: Any) -> float:
     return 0.0
 
 
-def _unsupported_result(confidence: float, reasoning: str) -> dict[str, Any]:
+def _unsupported_result(reasoning: str) -> dict[str, Any]:
     """
     Build a result for a photo the taxonomy cannot classify.
 
     Uses the 'Needs attention' status, which is part of the frontend's status
     union and deliberately unused by the 15 disease classes, so the UI can
     distinguish "we could not assess this" from "this leaf is healthy".
+
+    Confidence is forced to 0 rather than passed through. A model asked to name a
+    disease on an unidentifiable image will often answer 100, meaning "I am
+    certain this is not a diagnosable leaf". The frontend renders that number
+    next to the result as "100% confidence" with a full bar, which reads as
+    certainty about a diagnosis that was never made. Zero is the honest value for
+    confidence in a disease that could not be identified.
     """
     note = reasoning.strip() or "The image did not clearly match a supported crop disease."
     return {
         "crop": "Unrecognised",
         "disease": "Unable to identify",
-        "confidence": confidence,
+        "confidence": 0.0,
         "severity": "Low",
         "status": "Needs attention",
         "recommendations": [
@@ -502,7 +509,7 @@ def diagnose(
 
     if label is None:
         if _normalise_label(raw_label).lower() == UNSUPPORTED_LABEL:
-            return _unsupported_result(confidence, reasoning)
+            return _unsupported_result(reasoning)
         # A label that is neither valid nor explicitly unsupported means the model
         # went off-script. Fall back to the unsupported path rather than inventing
         # a disease, and keep the raw value in the logs for debugging.
@@ -510,7 +517,7 @@ def diagnose(
             f"[warn] Bedrock returned a label outside the taxonomy: "
             f"{raw_label!r}. Falling back to the unsupported result."
         )
-        return _unsupported_result(confidence, reasoning)
+        return _unsupported_result(reasoning)
 
     return {
         "crop": CROP_MAP[label],
