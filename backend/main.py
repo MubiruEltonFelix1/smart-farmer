@@ -1,0 +1,225 @@
+"""
+main.py — FastAPI server for Smart Farmer crop disease diagnosis.
+
+Endpoints:
+  POST /api/v1/diagnose   — accepts a leaf image, returns DiagnosisResult JSON
+  GET  /api/v1/health     — liveness check plus the active diagnosis provider
+
+The diagnosis engine is pluggable and selected with DIAGNOSIS_PROVIDER:
+
+  bedrock (default)  calls Amazon Bedrock (Amazon Nova) — no local model, no GPU
+  onnx               runs a local .onnx file — see requirements-onnx.txt
+
+Both providers are held to the same interface so this file does not care which
+one is active:
+  startup()  -> (ready: bool, detail: str)
+  describe() -> dict
+  diagnose(image_bytes, crop_hint, location_hint) -> dict
+
+Run locally:
+  cd backend
+  uvicorn main:app --reload --port 8000
+"""
+
+import base64
+import importlib
+import os
+import sys
+from contextlib import asynccontextmanager
+
+from dotenv import load_dotenv
+from fastapi import FastAPI, File, Form, HTTPException, UploadFile
+from fastapi.middleware.cors import CORSMiddleware
+from starlette.concurrency import run_in_threadpool
+
+# Windows consoles default to a legacy code page (cp1252 in most locales). A log
+# line containing any character outside that code page would raise
+# UnicodeEncodeError and take the process down, which is a nasty way to lose a
+# server to a stray emoji, so make both streams tolerant before anything prints.
+for _stream in (sys.stdout, sys.stderr):
+    try:
+        _stream.reconfigure(errors="replace")
+    except (AttributeError, ValueError):  # not a TextIOWrapper, or already detached
+        pass
+
+load_dotenv()
+
+# ─── Config ──────────────────────────────────────────────────────────────────
+PROVIDER_NAME = os.getenv("DIAGNOSIS_PROVIDER", "bedrock").strip().lower() or "bedrock"
+KNOWN_PROVIDERS = {"bedrock": "bedrock_inference", "onnx": "inference"}
+
+# Origins allowed to call the API.
+# In production replace this with your actual frontend domain.
+ALLOWED_ORIGINS = os.getenv(
+    "ALLOWED_ORIGINS",
+    "http://localhost:5173,http://localhost:4173",
+).split(",")
+
+MAX_BYTES = 10 * 1024 * 1024  # 10 MB
+
+
+def _load_provider():
+    """
+    Import the configured provider module.
+
+    Imports are deferred so that choosing Bedrock never requires onnxruntime to
+    be installed, and choosing ONNX never requires boto3.
+    """
+    module_name = KNOWN_PROVIDERS.get(PROVIDER_NAME)
+    if module_name is None:
+        raise RuntimeError(
+            f"DIAGNOSIS_PROVIDER={PROVIDER_NAME!r} is not recognised. "
+            f"Valid values: {', '.join(sorted(KNOWN_PROVIDERS))}."
+        )
+    try:
+        return importlib.import_module(module_name)
+    except ImportError as exc:
+        raise RuntimeError(
+            f"DIAGNOSIS_PROVIDER={PROVIDER_NAME!r} needs the {module_name!r} module, "
+            f"but it could not be imported: {exc}. Install the matching requirements "
+            "file in backend/."
+        ) from exc
+
+
+# ─── Lifespan: prepare the provider once at startup ──────────────────────────
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    app.state.provider_name = PROVIDER_NAME
+    app.state.provider = None
+    app.state.ready = False
+    app.state.detail = "provider has not started yet"
+
+    try:
+        module = _load_provider()
+    except RuntimeError as exc:
+        app.state.detail = str(exc)
+        print(f"\n[warn] {exc}\n   Starting anyway so /api/v1/health can report it.\n")
+        yield
+        return
+
+    app.state.provider = module
+
+    ready, detail = module.startup()
+    app.state.ready = ready
+    app.state.detail = detail
+
+    if ready:
+        print(f"[ok] Diagnosis provider '{PROVIDER_NAME}' ready - {detail}")
+    else:
+        print(
+            f"\n[warn] Diagnosis provider '{PROVIDER_NAME}' is not ready - {detail}"
+            "\n   The server will start, but /api/v1/diagnose will return 503."
+            "\n   See backend/.env.example for the configuration this needs.\n"
+        )
+
+    yield
+    # nothing to tear down for either provider
+
+
+# ─── App ─────────────────────────────────────────────────────────────────────
+app = FastAPI(
+    title="Smart Farmer — Crop Diagnosis API",
+    version="1.0.0",
+    lifespan=lifespan,
+)
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=ALLOWED_ORIGINS,
+    allow_methods=["POST", "GET"],
+    allow_headers=["*"],
+)
+
+
+# ─── Health ──────────────────────────────────────────────────────────────────
+@app.get("/api/v1/health")
+def health():
+    provider = app.state.provider
+    details = provider.describe() if provider is not None else {"provider": PROVIDER_NAME}
+    return {
+        "status": "ok" if app.state.ready else "degraded",
+        "ready": app.state.ready,
+        "detail": app.state.detail,
+        **details,
+    }
+
+
+# ─── Diagnose ────────────────────────────────────────────────────────────────
+@app.post("/api/v1/diagnose")
+async def diagnose(
+    image: UploadFile | None = File(default=None),
+    image_b64: str | None = Form(default=None),
+    # max_length keeps an oversized or hostile hint out of the model prompt.
+    # Values are also sanitised again in the provider before interpolation.
+    crop: str | None = Form(default=None, max_length=64),        # cropHint from the frontend
+    location: str | None = Form(default=None, max_length=128),   # locationHint from the frontend
+):
+    """
+    Accept a leaf image and return a diagnosis.
+
+    The frontend (diagnosisService.ts) sends the image as a base64 data URL in
+    the `image_b64` form field. This endpoint also accepts a multipart file
+    upload in the `image` field so the API stays usable from curl and other
+    clients.
+
+    Returns JSON matching the DiagnosisResult TypeScript interface.
+    """
+    provider = app.state.provider
+    if provider is None:
+        raise HTTPException(status_code=503, detail=app.state.detail)
+
+    # ── Read raw image bytes ─────────────────────────────────────────────────
+    image_bytes: bytes | None = None
+
+    # Case 1: frontend sends a base64 data URL as a plain form string
+    if image_b64:
+        try:
+            # strip a "data:image/jpeg;base64," prefix if present
+            b64_data = image_b64.split(",")[-1]
+            image_bytes = base64.b64decode(b64_data, validate=False)
+        except Exception:
+            raise HTTPException(status_code=400, detail="Invalid base64 image data.")
+
+    # Case 2: multipart file upload
+    elif image and image.filename:
+        image_bytes = await image.read()
+
+    else:
+        raise HTTPException(
+            status_code=422,
+            detail="No image provided. Send an image file or a base64 data URL.",
+        )
+
+    # ── Validate size (10 MB) ────────────────────────────────────────────────
+    if len(image_bytes) > MAX_BYTES:
+        raise HTTPException(status_code=413, detail="Image exceeds 10 MB limit.")
+
+    # ── Run the diagnosis ────────────────────────────────────────────────────
+    # Both providers are synchronous and block for the length of a network round
+    # trip (Bedrock) or a forward pass (ONNX). Calling them directly from this
+    # async endpoint would stall the event loop and serialise every other
+    # request behind it, so hand the work to the threadpool.
+    try:
+        return await run_in_threadpool(
+            provider.diagnose,
+            image_bytes,
+            crop_hint=crop,
+            location_hint=location,
+        )
+    except Exception as exc:
+        # Providers raise typed errors carrying the HTTP status to return and a
+        # message that is safe to show a farmer. Anything without a status_code
+        # is a bug here, so it becomes a 500 rather than leaking a traceback.
+        status_code = getattr(exc, "status_code", None)
+        if status_code is not None:
+            print(f"[warn] Diagnosis failed ({status_code}): {exc}")
+            raise HTTPException(
+                status_code=status_code,
+                detail=getattr(exc, "user_message", "Analysis failed."),
+            ) from exc
+
+        print(f"[error] Unexpected diagnosis failure: {exc!r}")
+        raise HTTPException(
+            status_code=500,
+            detail="Analysis failed unexpectedly. Please try again.",
+        ) from exc
