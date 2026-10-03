@@ -32,6 +32,7 @@ cap is what stops a runaway or hostile client from changing that.
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import secrets
 import sys
@@ -39,7 +40,15 @@ import time
 from pathlib import Path
 
 import boto3
-from botocore.exceptions import BotoCoreError, ClientError, NoCredentialsError
+from botocore.exceptions import (
+    BotoCoreError,
+    ClientError,
+    ConnectionClosedError,
+    ConnectTimeoutError,
+    EndpointConnectionError,
+    NoCredentialsError,
+    ReadTimeoutError,
+)
 
 # A Windows console on a legacy code page raises UnicodeEncodeError on any
 # character outside it, and this script prints AWS error text we do not control.
@@ -54,6 +63,8 @@ for _stream in (sys.stdout, sys.stderr):
 SCRIPT_DIR = Path(__file__).resolve().parent
 REPO_ROOT = SCRIPT_DIR.parent
 ZIP_PATH = SCRIPT_DIR / "build" / "smart-farmer-lambda.zip"
+ARTIFACT_BUCKET_PREFIX = "smart-farmer-lambda-artifacts"
+ARTIFACT_KEY = "smart-farmer-lambda.zip"
 
 # ─── Fixed resource names ────────────────────────────────────────────────────
 FUNCTION_NAME = "smart-farmer-diagnose"
@@ -124,6 +135,38 @@ def error_code(exc: ClientError) -> str:
 
 def is_access_denied(exc: ClientError) -> bool:
     return error_code(exc) in ("AccessDenied", "AccessDeniedException", "UnauthorizedOperation")
+
+
+def artifact_bucket_name(account: str, region: str) -> str:
+    return f"{ARTIFACT_BUCKET_PREFIX}-{account}-{region}"
+
+
+def ensure_artifact_package(session, region: str, account: str) -> tuple[str, str]:
+    """Upload the Lambda zip to S3 so Lambda can fetch it server-side."""
+    s3 = session.client("s3", region_name=region)
+    bucket = artifact_bucket_name(account, region)
+    zip_bytes = ZIP_PATH.read_bytes()
+    digest = hashlib.sha256(zip_bytes).hexdigest()[:16]
+    key = f"{ARTIFACT_KEY.rsplit('.', 1)[0]}-{digest}.zip"
+
+    try:
+        if region == "us-east-1":
+            s3.create_bucket(Bucket=bucket)
+        else:
+            s3.create_bucket(
+                Bucket=bucket,
+                CreateBucketConfiguration={"LocationConstraint": region},
+            )
+        log("new", f"created artifact bucket {bucket}")
+    except ClientError as exc:
+        code = error_code(exc)
+        if code not in ("BucketAlreadyOwnedByYou", "BucketAlreadyExists"):
+            raise
+        log("ok", f"artifact bucket exists: {bucket}")
+
+    s3.put_object(Bucket=bucket, Key=key, Body=zip_bytes)
+    log("ok", f"uploaded {ZIP_PATH.name} to s3://{bucket}/{key}")
+    return bucket, key
 
 
 # ─── Preflight ───────────────────────────────────────────────────────────────
@@ -338,7 +381,9 @@ def ensure_role(session, region: str, account: str) -> tuple[str, bool]:
 def ensure_function(session, region: str, role_arn: str, env_vars: dict) -> str:
     heading("Lambda function")
     lam = session.client("lambda", region_name=region)
-    zip_bytes = ZIP_PATH.read_bytes()
+    account = session.client("sts", region_name=region).get_caller_identity()["Account"]
+    artifact_bucket, artifact_key = ensure_artifact_package(session, region, account)
+    code_location = {"S3Bucket": artifact_bucket, "S3Key": artifact_key}
 
     common_config = {
         "Runtime": LAMBDA_RUNTIME,
@@ -359,7 +404,7 @@ def ensure_function(session, region: str, role_arn: str, env_vars: dict) -> str:
     if exists:
         log("ok", f"function exists: {FUNCTION_NAME}")
 
-        lam.update_function_code(FunctionName=FUNCTION_NAME, ZipFile=zip_bytes)
+        lam.update_function_code(FunctionName=FUNCTION_NAME, **code_location)
         log("ok", "uploaded new code")
         lam.get_waiter("function_updated").wait(FunctionName=FUNCTION_NAME)
 
@@ -370,14 +415,15 @@ def ensure_function(session, region: str, role_arn: str, env_vars: dict) -> str:
     else:
         log("new", f"creating function {FUNCTION_NAME}")
         # A freshly created IAM role occasionally needs a moment more than the
-        # sleep in ensure_role, so retry rather than failing the whole deploy.
+        # sleep in ensure_role. Lambda uploads can also fail transiently when
+        # the AWS endpoint stalls, so retry rather than failing the whole deploy.
         last_error: Exception | None = None
         for attempt in range(1, 6):
             try:
                 lam.create_function(
                     FunctionName=FUNCTION_NAME,
                     Description="Smart Farmer crop-disease diagnosis API (Bedrock + Nova).",
-                    Code={"ZipFile": zip_bytes},
+                    Code=code_location,
                     Publish=False,
                     **common_config,
                 )
@@ -387,6 +433,19 @@ def ensure_function(session, region: str, role_arn: str, env_vars: dict) -> str:
                 last_error = exc
                 if error_code(exc) == "InvalidParameterValueException" and attempt < 5:
                     log("wait", f"role not ready yet, retry {attempt}/5 in 8s")
+                    time.sleep(8)
+                else:
+                    raise
+            except (
+                ConnectionClosedError,
+                ConnectTimeoutError,
+                EndpointConnectionError,
+                ReadTimeoutError,
+                TimeoutError,
+            ) as exc:
+                last_error = exc
+                if attempt < 5:
+                    log("wait", f"Lambda endpoint timed out, retry {attempt}/5 in 8s")
                     time.sleep(8)
                 else:
                     raise
