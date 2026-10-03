@@ -1,0 +1,30 @@
+# Dependencies bundled into the AWS Lambda deployment package.
+#
+#   pip install -r backend/requirements-lambda.txt
+#
+# This is deliberately NOT a copy of requirements.txt. Two differences:
+#
+#   uvicorn is excluded. It exists only to serve the app locally. Lambda has no
+#   socket to listen on; Mangum adapts the ASGI app to the API Gateway event
+#   shape instead.
+#
+#   mangum is added. It is the ASGI-to-Lambda adapter and is required by
+#   lambda_handler.py.
+#
+# boto3 IS bundled even though the Lambda runtime ships its own copy. Relying on
+# the runtime's version would make correctness depend on whichever botocore AWS
+# happens to publish in the image, and botocore must be new enough to expose the
+# Bedrock Converse API. It costs about 25 MB and removes that unknown entirely.
+#
+# Pins match requirements.txt exactly so the deployed function runs the same
+# library versions that were tested locally.
+#
+# Built for the Lambda platform, not this machine. deploy/build_lambda_package.py
+# fetches manylinux wheels so the bundle is correct even though we build on Windows.
+
+fastapi==0.138.2
+python-multipart==0.0.20
+Pillow==12.1.1
+boto3==1.43.101
+python-dotenv==1.2.2
+mangum==0.22.0

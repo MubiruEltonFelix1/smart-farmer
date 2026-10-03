@@ -175,6 +175,61 @@ CLI is already configured, leave the AWS keys out of `.env` entirely.
 
 ---
 
+## Deploying the backend to AWS Lambda
+
+The backend runs on Lambda behind an API Gateway HTTP API, so it does not depend on your machine
+being on. Lambda and API Gateway bill per request with no idle charge, so an idle demo costs
+approximately nothing.
+
+```bash
+python deploy/build_lambda_package.py     # builds deploy/build/smart-farmer-lambda.zip
+python deploy/deploy_backend.py --check   # reports missing IAM permissions, creates nothing
+python deploy/deploy_backend.py --allowed-origins https://your-site.vercel.app
+```
+
+`build_lambda_package.py` installs the dependencies as **manylinux wheels**, because Lambda runs
+Linux and this project is often built on Windows. Installing normally would bundle Windows
+binaries that fail to import at runtime. The script also verifies the bundle contains Linux shared
+objects, contains no Windows `.pyd` files, and holds every module the handler imports, so a broken
+package fails at build time rather than on the first request.
+
+`deploy_backend.py` is idempotent. It creates or updates an IAM execution role, the Lambda function,
+the API Gateway API, a `$default` route, stage throttling, and reserved concurrency. Re-running it
+updates in place rather than duplicating.
+
+### What protects your AWS bill
+
+The `/api/v1/diagnose` endpoint costs money per call, so two ceilings are set by default:
+
+- **Reserved concurrency** (default 5) is a hard cap on simultaneous executions, and therefore a
+  hard cap on how fast you can be billed. This is the control that actually bounds spend.
+- **Stage throttling** (default 5/s sustained, 10 burst) rejects floods before they reach Lambda.
+
+Add `--budget-email you@example.com` to also get an email alert at 80% of a monthly budget. Note a
+budget **alerts**, it does not stop spending; only the concurrency cap does that.
+
+CORS is **not** a security control here. It is a browser rule, and anything that is not a browser
+ignores it entirely. It exists so the legitimate frontend works, not to keep anyone out.
+
+### Pointing the frontend at it
+
+The deploy prints an API base URL. Set it in your frontend host as:
+
+```
+VITE_API_BASE = https://<api-id>.execute-api.<region>.amazonaws.com
+```
+
+Two things to know. Vite bakes environment variables in at **build time**, not runtime, so you must
+redeploy after changing it. And the `/api` proxy in `vite.config.ts` only exists during `vite dev`;
+it does not apply to a production build, so without `VITE_API_BASE` the deployed site will call its
+own origin and 404.
+
+`ALLOWED_ORIGINS` is matched exactly, so Vercel **preview** deployments (the branch-specific URLs)
+are CORS-blocked by default. Pass the production domain, or extend `ALLOWED_ORIGINS` to cover the
+preview pattern.
+
+---
+
 ## Optional: local ONNX inference
 
 There is an optional local-inference path, and it is **not the default**:

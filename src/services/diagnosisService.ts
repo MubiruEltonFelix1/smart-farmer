@@ -10,6 +10,19 @@ import type { DiagnosisResult } from '../types';
 
 const API_BASE = import.meta.env.VITE_API_BASE ?? '';
 
+/**
+ * Shared secret for the deployed API, sent as the X-API-Key header.
+ *
+ * Vite inlines this into the JavaScript bundle, so treat it as public: it stops
+ * scanners and casual abuse, not a determined reader of the bundle. The real
+ * ceilings on cost live on the server (Lambda concurrency and API Gateway
+ * throttling), not here.
+ *
+ * Leave VITE_API_KEY unset for local development. The backend skips the check
+ * entirely when it has no key configured.
+ */
+const API_KEY = import.meta.env.VITE_API_KEY ?? '';
+
 export interface AnalysisRequest {
   image: File | Blob | string; // File object, Blob, or base64 data URL
   cropHint?: string;           // Optional: helps narrow model selection
@@ -47,6 +60,9 @@ export async function analyzeCropImage(
     response = await fetch(`${API_BASE}/api/v1/diagnose`, {
       method: 'POST',
       body: formData,
+      // Content-Type is deliberately NOT set: the browser has to set it itself so
+      // the multipart boundary is included. Only the auth header is added.
+      headers: API_KEY ? { 'X-API-Key': API_KEY } : undefined,
     });
   } catch {
     throw buildError(
@@ -62,6 +78,11 @@ export async function analyzeCropImage(
 
     if (response.status === 503) {
       throw buildError('SERVER', msg, 'The AI model is not ready yet. Please try again shortly.');
+    }
+    if (response.status === 401) {
+      // A 401 means the deployment's key configuration is wrong, not that the
+      // farmer did anything wrong, so the wording stays calm but says what to check.
+      throw buildError('SERVER', msg, 'The analysis service is not configured correctly. Please try again shortly.');
     }
     if (response.status === 413) {
       throw buildError('IMAGE_QUALITY', msg, 'Image is too large. Please use an image under 10 MB.');
