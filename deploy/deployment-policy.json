@@ -74,10 +74,21 @@
         "apigateway:POST",
         "apigateway:PATCH",
         "apigateway:PUT",
-        "apigateway:DELETE",
-        "apigateway:TagResource"
+        "apigateway:DELETE"
       ],
       "Resource": "arn:aws:apigateway:us-east-1::/*"
+    },
+    {
+      "Sid": "ManageLambdaArtifactsBucket",
+      "Effect": "Allow",
+      "Action": [
+        "s3:CreateBucket",
+        "s3:PutObject"
+      ],
+      "Resource": [
+        "arn:aws:s3:::smart-farmer-lambda-artifacts-*",
+        "arn:aws:s3:::smart-farmer-lambda-artifacts-*/*"
+      ]
     },
     {
       "Sid": "ReadLogsWhenSomethingBreaks",

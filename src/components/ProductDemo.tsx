@@ -24,16 +24,23 @@ function IconCamera({ size = 20 }: { size?: number }) {
 }
 
 interface Props {
-  locale: Locale;
-  onLocaleChange: (l: Locale) => void;
+  locale?: Locale;
+  onLocaleChange?: (l: Locale) => void;
 }
 
-export default function ProductDemo({ locale, onLocaleChange }: Props) {
+export default function ProductDemo({ locale: localeProp, onLocaleChange }: Props) {
   const [state,    setState]    = useState<DemoState>('idle');
   const [preview,  setPreview]  = useState<string | null>(null);
   const [result,   setResult]   = useState<DiagnosisResult | null>(null);
   const [error,    setError]    = useState<string>('');
   const [progress, setProgress] = useState(0);
+  // If locale is controlled externally (ProductPage), use that. Otherwise manage locally.
+  const [internalLocale, setInternalLocale] = useState<Locale>('en');
+  const locale = localeProp ?? internalLocale;
+  const handleLocaleChange = (l: Locale) => {
+    setInternalLocale(l);
+    onLocaleChange?.(l);
+  };
 
   const fileInputRef   = useRef<HTMLInputElement>(null);
   const cameraInputRef = useRef<HTMLInputElement>(null);
@@ -117,7 +124,7 @@ export default function ProductDemo({ locale, onLocaleChange }: Props) {
             <button
               key={loc}
               className={`lang-btn${locale === loc ? ' lang-btn--active' : ''}`}
-              onClick={() => onLocaleChange(loc)}
+              onClick={() => handleLocaleChange(loc)}
               aria-pressed={locale === loc}
             >
               {LOCALE_LABELS[loc]}
