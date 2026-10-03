@@ -385,15 +385,17 @@ def ensure_function(session, region: str, role_arn: str, env_vars: dict) -> str:
     artifact_bucket, artifact_key = ensure_artifact_package(session, region, account)
     code_location = {"S3Bucket": artifact_bucket, "S3Key": artifact_key}
 
-    common_config = {
+    # Fields accepted by both create_function and update_function_configuration.
+    update_config = {
         "Runtime": LAMBDA_RUNTIME,
         "Role": role_arn,
         "Handler": "lambda_handler.handler",
         "Timeout": LAMBDA_TIMEOUT_S,
         "MemorySize": LAMBDA_MEMORY_MB,
         "Environment": {"Variables": env_vars},
-        "Architectures": [LAMBDA_ARCH],
     }
+    # Architectures is create-only — update_function_configuration rejects it.
+    create_config = {**update_config, "Architectures": [LAMBDA_ARCH]}
 
     try:
         lam.get_function(FunctionName=FUNCTION_NAME)
@@ -409,7 +411,7 @@ def ensure_function(session, region: str, role_arn: str, env_vars: dict) -> str:
         lam.get_waiter("function_updated").wait(FunctionName=FUNCTION_NAME)
 
         # Configuration cannot be changed while a code update is in flight.
-        lam.update_function_configuration(FunctionName=FUNCTION_NAME, **common_config)
+        lam.update_function_configuration(FunctionName=FUNCTION_NAME, **update_config)
         log("ok", "applied configuration (timeout, memory, env vars)")
         lam.get_waiter("function_updated").wait(FunctionName=FUNCTION_NAME)
     else:
@@ -425,7 +427,7 @@ def ensure_function(session, region: str, role_arn: str, env_vars: dict) -> str:
                     Description="Smart Farmer crop-disease diagnosis API (Bedrock + Nova).",
                     Code=code_location,
                     Publish=False,
-                    **common_config,
+                    **create_config,
                 )
                 last_error = None
                 break
@@ -462,12 +464,23 @@ def ensure_function(session, region: str, role_arn: str, env_vars: dict) -> str:
 
 def set_concurrency(session, region: str, limit: int) -> None:
     heading("Reserved concurrency (spend ceiling)")
+    if limit == 0:
+        log("skip", "limit=0: function uses unreserved account concurrency (no hard cap set)")
+        return
     lam = session.client("lambda", region_name=region)
-    lam.put_function_concurrency(
-        FunctionName=FUNCTION_NAME,
-        ReservedConcurrentExecutions=limit,
-    )
-    log("ok", f"capped at {limit} concurrent executions")
+    try:
+        lam.put_function_concurrency(
+            FunctionName=FUNCTION_NAME,
+            ReservedConcurrentExecutions=limit,
+        )
+        log("ok", f"capped at {limit} concurrent executions")
+    except ClientError as exc:
+        if error_code(exc) == "InvalidParameterValueException" and "UnreservedConcurrentExecution" in str(exc):
+            log("warn", f"account concurrency quota too low to reserve {limit}; "
+                        "skipping reserved concurrency (function uses shared pool). "
+                        "Request a quota increase at https://console.aws.amazon.com/servicequotas/ if needed.")
+        else:
+            raise
 
 
 def resolve_api_key(lam, provided: str | None) -> tuple[str, str]:
