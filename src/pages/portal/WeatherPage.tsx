@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import type { ReactNode } from 'react';
 import { useAuth } from '../../auth/AuthContext';
 import { t } from '../../i18n/translations';
 import { DEMO_WEATHER } from '../../data/seedData';
@@ -6,7 +7,7 @@ import type { WeatherData } from '../../types';
 import {
   IconDroplets, IconThermometer, IconActivity, IconWarning,
   IconCheck, IconRefresh, IconMapPin, IconClock, IconSun,
-  IconInfo,
+  IconInfo, IconCloud,
 } from '../../components/Icons';
 
 function alertColor(sev: string) {
@@ -15,13 +16,19 @@ function alertColor(sev: string) {
   return { bg: 'rgba(14,116,144,0.10)', color: '#0e7490', border: '#0e7490' };
 }
 
-function alertIcon(type: string) {
-  if (type === 'heavy_rain') return '🌧️';
-  if (type === 'drought')    return '🌵';
-  if (type === 'strong_wind')return '💨';
-  if (type === 'heat')       return '🌡️';
-  if (type === 'cold')       return '❄️';
-  return '⚠️';
+function alertIcon(type: string): ReactNode {
+  if (type === 'heavy_rain') return <IconCloud />;
+  if (type === 'strong_wind') return <IconActivity />;
+  if (type === 'heat') return <IconThermometer />;
+  if (type === 'drought') return <IconSun />;
+  return <IconWarning />;
+}
+
+function weatherIcon(condition: string): ReactNode {
+  const normalized = condition.toLowerCase();
+  if (normalized.includes('rain') || normalized.includes('shower')) return <IconCloud />;
+  if (normalized.includes('sun') || normalized.includes('clear')) return <IconSun />;
+  return <IconCloud />;
 }
 
 export default function WeatherPage() {
@@ -132,7 +139,7 @@ export default function WeatherPage() {
         <h3 className="weather-section-title">{t(locale, 'weatherCurrent')}</h3>
         <div className="weather-current-card">
           <div className="weather-current-main">
-            <span className="weather-current-icon">{data.current.conditionIcon}</span>
+            <span className="weather-current-icon">{weatherIcon(data.current.conditionText)}</span>
             <div>
               <span className="weather-current-temp">{data.current.tempC}°C</span>
               <span className="weather-current-feels">Feels like {data.current.feelsLikeC}°C</span>
@@ -171,7 +178,7 @@ export default function WeatherPage() {
                     new Date(day.date).toLocaleDateString('en', { weekday: 'short', month: 'short', day: 'numeric' })}
                 </span>
               </div>
-              <span className="weather-forecast-item__icon">{day.conditionIcon}</span>
+              <span className="weather-forecast-item__icon">{weatherIcon(day.conditionText)}</span>
               <div className="weather-forecast-item__temps">
                 <span className="weather-forecast-item__max">{day.maxTempC}°</span>
                 <span className="weather-forecast-item__min">{day.minTempC}°</span>

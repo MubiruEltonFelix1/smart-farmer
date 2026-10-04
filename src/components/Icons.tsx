@@ -1,5 +1,5 @@
 /* ─────────────────────────────────────────────────────────
-   SmartFarmer Icon Library — inline SVG, no emoji, no deps
+   Kebeera Icon Library — inline SVG, no emoji, no deps
    All icons accept className + size props.
    ───────────────────────────────────────────────────────── */
 import type { CSSProperties } from 'react';

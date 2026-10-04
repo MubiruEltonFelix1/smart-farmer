@@ -19,7 +19,7 @@ export default function PartnerSection() {
           From individual farms<br />to agricultural ecosystems.
         </h2>
         <p className="section__subtitle">
-          Smart Farmer is being built as a platform — not just an app.
+          Kebeera is being built as a platform — not just an app.
           We partner with organisations that serve African farmers at scale.
         </p>
 
@@ -46,7 +46,7 @@ export default function PartnerSection() {
             <h3>Ready to explore a partnership?</h3>
             <p>
               Whether you're an NGO, cooperative, government ministry, or agribusiness —
-              we'd like to understand your needs and explore how Smart Farmer can support your work.
+              we'd like to understand your needs and explore how Kebeera can support your work.
             </p>
             <a href="mailto:partners@smartfarmer.ai" className="btn btn--primary btn--large">
               Partner With Us

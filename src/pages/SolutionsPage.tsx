@@ -11,7 +11,7 @@ export default function SolutionsPage() {
       <PageHeader
         eyebrow="SOLUTIONS"
         title="From individual farms to agricultural ecosystems."
-        subtitle="Smart Farmer is being built as a platform — not just an app. We work with cooperatives, NGOs, governments, and agribusinesses that serve African farmers at scale."
+        subtitle="Kebeera is being built as a platform — not just an app. We work with cooperatives, NGOs, governments, and agribusinesses that serve African farmers at scale."
       />
       <PartnerSection />
       <ExtensionSection />

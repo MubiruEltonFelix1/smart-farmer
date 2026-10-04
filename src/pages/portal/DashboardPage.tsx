@@ -8,7 +8,7 @@ import type { ScanRecord } from '../../types';
 import {
   IconScan, IconLeaf, IconArrowRight, IconWarning,
   IconDroplets, IconCheck, IconClock,
-  IconStar,
+  IconStar, IconInfo,
 } from '../../components/Icons';
 
 function severityColor(sev?: string) {
@@ -64,7 +64,7 @@ export default function DashboardPage() {
       {/* Greeting */}
       <div className="dash-greeting">
         <h2 className="dash-greeting__text">
-          {getGreeting(locale, user?.name?.split(' ')[0] ?? 'Farmer')} 👋
+          {getGreeting(locale, user?.name?.split(' ')[0] ?? 'Farmer')}
         </h2>
         <p className="dash-greeting__sub">
           {new Date().toLocaleDateString('en-UG', { weekday: 'long', month: 'long', day: 'numeric' })}
@@ -74,7 +74,7 @@ export default function DashboardPage() {
       {/* Demo banner */}
       {user?.isDemo && (
         <div className="dash-demo-notice">
-          🌱 You are signed in to the <strong>demo account</strong>. Data shown is for testing purposes only.
+          <IconInfo size={16} /> You are signed in to the <strong>demo account</strong>. Data shown is for testing purposes only.
           <button className="dash-demo-notice__btn" onClick={() => navigate('/signup')}>
             Create real account
           </button>

@@ -1,5 +1,5 @@
 """
-inference.py — optional local ONNX provider for Smart Farmer crop diagnosis.
+inference.py — optional local ONNX provider for Kebeera crop diagnosis.
 
 This is NOT the default engine. The default is Amazon Bedrock, which needs no
 local model at all. Use this module only when you have an exported model file and

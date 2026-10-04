@@ -1,5 +1,5 @@
 """
-main.py — FastAPI server for Smart Farmer crop disease diagnosis.
+main.py — FastAPI server for Kebeera crop disease diagnosis.
 
 Endpoints:
   POST /api/v1/diagnose   — accepts a leaf image, returns DiagnosisResult JSON
@@ -188,7 +188,7 @@ async def lifespan(app: FastAPI):
 
 # ─── App ─────────────────────────────────────────────────────────────────────
 app = FastAPI(
-    title="Smart Farmer — Crop Diagnosis API",
+    title="Kebeera — Crop Diagnosis API",
     version="1.0.0",
     lifespan=lifespan,
 )

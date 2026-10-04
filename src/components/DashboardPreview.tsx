@@ -16,11 +16,11 @@ export default function DashboardPreview() {
           One diagnosis is useful.<br />A farming intelligence platform is transformative.
         </h2>
         <p className="section__subtitle">
-          Smart Farmer is building toward a full digital companion for African farmers —
+          Kebeera is building toward a full digital companion for African farmers —
           from single crop diagnosis to whole-farm intelligence.
         </p>
 
-        <div className="dashboard-mockup" role="img" aria-label="Smart Farmer dashboard preview">
+        <div className="dashboard-mockup" role="img" aria-label="Kebeera dashboard preview">
           {/* Header */}
           <div className="dash-header">
             <div className="dash-header__left">
@@ -29,7 +29,7 @@ export default function DashboardPreview() {
                 <path d="M16 6C11 9 9 14 10 20C11 24 16 26 20 22C23 18 22 12 16 6Z" fill="#52b788"/>
               </svg>
               <div>
-                <div className="dash-header__title">Smart Farmer</div>
+                <div className="dash-header__title">Kebeera</div>
                 <div className="dash-header__sub">Farm Dashboard</div>
               </div>
             </div>

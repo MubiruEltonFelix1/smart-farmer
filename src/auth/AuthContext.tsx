@@ -1,5 +1,5 @@
 /**
- * AuthContext — Global authentication state for SmartFarmer.
+ * AuthContext — Global authentication state for Kebeera.
  *
  * Uses localStorage for demo/mock persistence. In production,
  * replace mockAuthService calls with real Supabase / Firebase / custom

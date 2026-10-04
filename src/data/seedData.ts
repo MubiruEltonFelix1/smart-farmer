@@ -1,5 +1,5 @@
 /**
- * seedData.ts — Demo / seed data for the SmartFarmer portal.
+ * seedData.ts — Demo / seed data for the Kebeera portal.
  * Used by mockAuthService to populate a fresh demo account.
  * All data is clearly fictional.
  */

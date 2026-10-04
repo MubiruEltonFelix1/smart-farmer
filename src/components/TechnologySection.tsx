@@ -66,7 +66,7 @@ export default function TechnologySection() {
               </div>
             ))}
           </div>
-          <p className="tech-moat__note">This is Smart Farmer's technology vision — the foundation we are building toward.</p>
+          <p className="tech-moat__note">This is Kebeera's technology vision — the foundation we are building toward.</p>
         </div>
 
         <div className="tech-signals">

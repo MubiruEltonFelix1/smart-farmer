@@ -1,8 +1,8 @@
-# SmartFarmer — AI-Powered Crop Disease Detection
+# Kebeera — AI-Powered Crop Disease Detection
 
 > Turn a photo of your crop into actionable farming intelligence.
 
-SmartFarmer is a mobile-first web application for African smallholder farmers. It provides AI-powered crop leaf disease diagnosis, weather forecasts, local disease outbreak tracking, a multilingual AI farming assistant, and a complete farmer portal.
+Kebeera is a mobile-first web application for African smallholder farmers. It provides AI-powered crop leaf disease diagnosis, weather forecasts, local disease outbreak tracking, a multilingual AI farming assistant, and a complete farmer portal.
 
 ---
 
@@ -267,7 +267,7 @@ To add a new language: add a new locale key to `src/i18n/translations.ts` and ad
 
 ## Responsible AI Disclaimer
 
-AI assessments support, but do not replace, qualified agricultural advice or local extension officers. SmartFarmer is a decision-support tool. For high-risk or unclear situations, always consult a qualified agronomist or your local extension officer.
+AI assessments support, but do not replace, qualified agricultural advice or local extension officers. Kebeera is a decision-support tool. For high-risk or unclear situations, always consult a qualified agronomist or your local extension officer.
 
 ---
 

@@ -63,7 +63,7 @@ export default function AfricaSection() {
             <div className="africa-card__icon" aria-hidden="true"><IconUsers size={24} /></div>
             <h3>Human + AI</h3>
             <p>
-              Smart Farmer supports farmers and agricultural professionals — it doesn't pretend
+              Kebeera supports farmers and agricultural professionals — it doesn't pretend
               to replace them. AI provides immediate, accessible guidance. Local expertise
               provides context, nuance, and trust.
             </p>

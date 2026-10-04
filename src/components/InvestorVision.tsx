@@ -66,7 +66,7 @@ export default function InvestorVision() {
               losses that better information could help mitigate.
             </p>
             <p>
-              Smart Farmer sits at the intersection of AI, mobile, agriculture, and Africa —
+              Kebeera sits at the intersection of AI, mobile, agriculture, and Africa —
               building a platform that can grow from individual farmer utility to an
               agricultural intelligence network.
             </p>

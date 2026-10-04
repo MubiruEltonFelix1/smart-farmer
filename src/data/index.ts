@@ -203,7 +203,7 @@ export const FAQ_ITEMS: FAQItem[] = [
   {
     question: 'Does the app replace agricultural experts?',
     answer:
-      'No. Smart Farmer is designed to support farmers and agricultural professionals, not replace them. The AI provides an initial assessment and practical guidance. For important decisions, we always recommend consulting a qualified local agricultural extension officer or specialist.',
+      'No. Kebeera is designed to support farmers and agricultural professionals, not replace them. The AI provides an initial assessment and practical guidance. For important decisions, we always recommend consulting a qualified local agricultural extension officer or specialist.',
   },
   {
     question: 'How accurate is the AI?',
@@ -223,7 +223,7 @@ export const FAQ_ITEMS: FAQItem[] = [
   {
     question: 'Which countries are supported?',
     answer:
-      'Smart Farmer is being developed with an initial focus on Sub-Saharan African markets. Specific country availability will be published as the product launches. If you are interested in a specific country or region, contact us directly.',
+      'Kebeera is being developed with an initial focus on Sub-Saharan African markets. Specific country availability will be published as the product launches. If you are interested in a specific country or region, contact us directly.',
   },
   {
     question: 'Can organisations integrate the technology?',

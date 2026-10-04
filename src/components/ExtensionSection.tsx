@@ -26,7 +26,7 @@ export default function ExtensionSection() {
         <div className="section__label">FOR AGRICULTURAL PROFESSIONALS</div>
         <h2 id="extension-heading" className="section__title">Amplify agricultural expertise.</h2>
         <p className="section__subtitle">
-          Smart Farmer isn't only for individual farmers. Extension officers and agricultural
+          Kebeera isn't only for individual farmers. Extension officers and agricultural
           professionals can use the platform to serve more farmers, faster.
         </p>
 

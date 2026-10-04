@@ -17,7 +17,7 @@ export default function SolutionSection() {
           Agricultural expertise,<br />in your pocket.
         </h2>
         <p className="section__subtitle">
-          Smart Farmer is a digital farming assistant that combines computer vision, machine
+          Kebeera is a digital farming assistant that combines computer vision, machine
           learning, and agricultural knowledge to help farmers understand what's happening to
           their crops — and what to do about it.
         </p>

@@ -85,7 +85,7 @@ export default function AssistantPage() {
 
     try {
       // Send full conversation history (including the new user message) to
-      // the backend. The backend forwards it to Bedrock with the SmartFarmer
+      // the backend. The backend forwards it to Bedrock with the Kebeera
       // system prompt and returns the assistant's reply.
       const reply = await sendChatMessage(updated.messages, locale);
 

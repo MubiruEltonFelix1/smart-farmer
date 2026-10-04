@@ -8,7 +8,7 @@
       "Resource": "*"
     },
     {
-      "Sid": "ManageTheSmartFarmerExecutionRole",
+      "Sid": "ManageTheKebeeraExecutionRole",
       "Effect": "Allow",
       "Action": [
         "iam:GetRole",
@@ -36,7 +36,7 @@
       "Resource": "arn:aws:iam::723591018551:role/smart-farmer-lambda-role"
     },
     {
-      "Sid": "ManageTheSmartFarmerFunction",
+      "Sid": "ManageTheKebeeraFunction",
       "Effect": "Allow",
       "Action": [
         "lambda:GetFunction",

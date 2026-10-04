@@ -1,5 +1,5 @@
 """
-taxonomy.py — shared, dependency-free taxonomy for Smart Farmer crop diagnosis.
+taxonomy.py — shared, dependency-free taxonomy for Kebeera crop diagnosis.
 
 This module holds the PlantVillage class labels (tomato, potato, bell pepper)
 plus expanded classes for Cassava, Maize, Coffee, Banana and Rice — crops

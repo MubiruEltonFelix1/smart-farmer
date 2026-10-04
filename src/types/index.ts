@@ -1,5 +1,5 @@
 /* ─────────────────────────────────────────────────────────
-   SmartFarmer — Shared TypeScript types
+   Kebeera — Shared TypeScript types
    ───────────────────────────────────────────────────────── */
 
 /* ── Existing public-site types ── */

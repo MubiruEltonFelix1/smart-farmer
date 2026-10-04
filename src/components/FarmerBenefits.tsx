@@ -23,7 +23,7 @@ export default function FarmerBenefits() {
           Your crops. Your decisions.<br />Better information.
         </h2>
         <p className="section__subtitle">
-          Smart Farmer is designed to help farmers make better-informed decisions —
+          Kebeera is designed to help farmers make better-informed decisions —
           not to replace their experience and knowledge.
         </p>
 

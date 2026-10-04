@@ -49,9 +49,9 @@ function PortalNav({ onClose }: { onClose?: () => void }) {
   return (
     <nav className="portal-nav" aria-label="Portal navigation">
       <div className="portal-nav__logo">
-        <Link to="/" className="portal-nav__logo-link" aria-label="SmartFarmer home">
+        <Link to="/" className="portal-nav__logo-link" aria-label="Kebeera home">
           <LogoMark size={30} />
-          <span className="portal-nav__logo-text">Smart<strong>Farmer</strong></span>
+          <span className="portal-nav__logo-text">Kebeera</span>
         </Link>
         {onClose && (
           <button className="portal-nav__close" onClick={onClose} aria-label="Close menu">
@@ -62,7 +62,7 @@ function PortalNav({ onClose }: { onClose?: () => void }) {
 
       {user?.isDemo && (
         <div className="portal-demo-badge">
-          <span>🌱 Demo Account</span>
+          <span className="portal-demo-badge__label"><IconLeaf size={15} /> Demo Account</span>
         </div>
       )}
 
@@ -194,7 +194,7 @@ export function PortalLayout({ children, title }: { children: ReactNode; title?:
       {/* Main content */}
       <div className="portal-main">
         <PortalHeader
-          title={title ?? 'SmartFarmer Portal'}
+          title={title ?? 'Kebeera Portal'}
           onMenuOpen={() => setDrawerOpen(true)}
         />
         <main className="portal-content" id="portal-main-content">

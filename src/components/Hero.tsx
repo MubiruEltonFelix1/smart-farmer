@@ -47,7 +47,7 @@ export default function Hero() {
               <div className="phone__screen">
                 {/* App header */}
                 <div className="phone__app-header">
-                  <span className="phone__app-logo">SmartFarmer</span>
+                  <span className="phone__app-logo">Kebeera</span>
                   <span className="phone__app-badge">AI</span>
                 </div>
 

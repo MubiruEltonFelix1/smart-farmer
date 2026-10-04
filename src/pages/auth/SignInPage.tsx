@@ -2,7 +2,9 @@ import { useState, type FormEvent } from 'react';
 import { useAuth } from '../../auth/AuthContext';
 import { useRouter, Link } from '../../router';
 import { t } from '../../i18n/translations';
-import { LogoMark, IconArrowRight, IconPhone, IconMail, IconLock, IconEye, IconX } from '../../components/Icons';
+import {
+  LogoMark, IconArrowRight, IconPhone, IconMail, IconLock, IconEye, IconX, IconLeaf,
+} from '../../components/Icons';
 
 type Mode = 'phone' | 'email';
 
@@ -41,12 +43,12 @@ export default function SignInPage() {
   }
 
   return (
-    <div className="auth-page">
+    <div className="auth-page auth-page--signin">
       <div className="auth-card">
         {/* Logo */}
         <Link to="/" className="auth-logo">
           <LogoMark size={40} />
-          <span className="auth-logo-text">Smart<strong>Farmer</strong></span>
+          <span className="auth-logo-text">Kebeera</span>
         </Link>
 
         <h1 className="auth-title">{t(locale, 'authWelcomeBack')}</h1>
@@ -54,7 +56,7 @@ export default function SignInPage() {
 
         {/* Demo banner */}
         <div className="auth-demo-banner">
-          <span>🌱 Demo account available</span>
+          <span className="auth-demo-label"><IconLeaf size={15} /> Demo account available</span>
           <button className="auth-demo-btn" type="button" onClick={demoSignIn}>
             Fill demo credentials
           </button>

@@ -11,7 +11,7 @@ export default function HowItWorksPage() {
       <PageHeader
         eyebrow="HOW IT WORKS"
         title="From leaf photo to farming decision."
-        subtitle="Four simple steps. No agricultural training required. Smart Farmer puts AI-powered crop guidance in the hands of every farmer."
+        subtitle="Four simple steps. No agricultural training required. Kebeera puts AI-powered crop guidance in the hands of every farmer."
       />
       <HowItWorks />
       <ProductDemo />

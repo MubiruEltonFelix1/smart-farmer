@@ -1,5 +1,5 @@
 """
-deploy_backend.py — provision the Smart Farmer diagnosis API on AWS Lambda.
+deploy_backend.py — provision the Kebeera diagnosis API on AWS Lambda.
 
 Creates, or updates in place, everything the backend needs to run without your
 machine:
@@ -350,7 +350,7 @@ def ensure_role(session, region: str, account: str) -> tuple[str, bool]:
         role = iam.create_role(
             RoleName=ROLE_NAME,
             AssumeRolePolicyDocument=json.dumps(trust_policy),
-            Description="Execution role for the Smart Farmer diagnosis Lambda.",
+            Description="Execution role for the Kebeera diagnosis Lambda.",
         )["Role"]
         created = True
         log("new", f"created role {role['Arn']}")
@@ -424,7 +424,7 @@ def ensure_function(session, region: str, role_arn: str, env_vars: dict) -> str:
             try:
                 lam.create_function(
                     FunctionName=FUNCTION_NAME,
-                    Description="Smart Farmer crop-disease diagnosis API (Bedrock + Nova).",
+                    Description="Kebeera crop-disease diagnosis API (Bedrock + Nova).",
                     Code=code_location,
                     Publish=False,
                     **create_config,
@@ -523,7 +523,7 @@ def ensure_api(session, region: str, account: str, function_arn: str,
         api_id = apigw.create_api(
             Name=API_NAME,
             ProtocolType="HTTP",
-            Description="Public endpoint for the Smart Farmer diagnosis API.",
+            Description="Public endpoint for the Kebeera diagnosis API.",
         )["ApiId"]
         log("new", f"created API {api_id}")
 
@@ -652,7 +652,7 @@ def ensure_budget(session, account: str, email: str, limit_usd: float) -> None:
 # ─── Main ────────────────────────────────────────────────────────────────────
 def main() -> None:
     parser = argparse.ArgumentParser(
-        description="Deploy the Smart Farmer diagnosis API to AWS Lambda.",
+        description="Deploy the Kebeera diagnosis API to AWS Lambda.",
     )
     parser.add_argument("--check", action="store_true",
                         help="report missing permissions and create nothing")
@@ -676,7 +676,7 @@ def main() -> None:
                              "generated on first deploy.")
     args = parser.parse_args()
 
-    print("\nSmart Farmer - backend deployment")
+    print("\nKebeera - backend deployment")
     session = boto3.Session(region_name=args.region)
 
     try:

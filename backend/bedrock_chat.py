@@ -1,5 +1,5 @@
 """
-bedrock_chat.py — conversational AI for the SmartFarmer farmer assistant.
+bedrock_chat.py — conversational AI for the Kebeera farmer assistant.
 
 Uses Amazon Bedrock (Amazon Nova) in text-only mode to power the in-app chat.
 Nova Micro is the default: it is the cheapest Nova tier, handles text well,
@@ -44,10 +44,10 @@ DEFAULT_CHAT_MODEL   = "amazon.nova-micro-v1:0"
 DEFAULT_MAX_TOKENS   = 600
 DEFAULT_TEMPERATURE  = 0.5   # some variation keeps replies natural
 
-# ─── SmartFarmer system prompt ────────────────────────────────────────────────
+# ─── Kebeera system prompt ────────────────────────────────────────────────
 # Gives the model its role, hard limits, and the agricultural context it needs.
 # Keep it tight: every token here is billed on every request.
-SMARTFARMER_SYSTEM_PROMPT = """You are SmartFarmer AI, a helpful conversational assistant \
+SMARTFARMER_SYSTEM_PROMPT = """You are Kebeera AI, a helpful conversational assistant \
 built for smallholder farmers in Uganda and East Africa.
 
 Your job:

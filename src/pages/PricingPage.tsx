@@ -89,7 +89,7 @@ export default function PricingPage() {
                   <span className="pricing-card__period">/month</span>
                 </div>
                 <p className="pricing-card__desc">
-                  For serious smallholder farmers and cooperative members who rely on SmartFarmer regularly.
+                  For serious smallholder farmers and cooperative members who rely on Kebeera regularly.
                 </p>
               </div>
               <ul className="pricing-feature-list">
@@ -164,7 +164,7 @@ export default function PricingPage() {
             <IconShield size={14} />
             <p>
               AI assessments support, but do not replace, qualified agricultural advice or local extension officers.
-              SmartFarmer is a decision-support tool — always consult a professional for high-risk or unclear situations.
+              Kebeera is a decision-support tool — always consult a professional for high-risk or unclear situations.
             </p>
           </div>
         </div>

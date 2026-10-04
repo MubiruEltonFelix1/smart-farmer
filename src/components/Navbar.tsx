@@ -36,9 +36,9 @@ export default function Navbar() {
     >
       <div className="navbar__inner">
         {/* Logo */}
-        <Link to="/" className="navbar__logo" exact aria-label="SmartFarmer — home">
+        <Link to="/" className="navbar__logo" exact aria-label="Kebeera — home">
           <LogoMark size={32} />
-          <span className="navbar__logo-text">Smart<strong>Farmer</strong></span>
+          <span className="navbar__logo-text">Kebeera</span>
         </Link>
 
         {/* Desktop links */}

@@ -49,7 +49,7 @@ export default function Footer() {
           <div className="footer__brand">
             <div className="footer__logo">
               <LogoMark size={28} />
-              <span>Smart<strong>Farmer</strong></span>
+              <span>Kebeera</span>
             </div>
             <p className="footer__tagline">
               AI-powered crop disease detection<br />for African smallholder farmers.
@@ -76,7 +76,7 @@ export default function Footer() {
         </div>
 
         <div className="footer__bottom">
-          <p>© {new Date().getFullYear()} SmartFarmer. All rights reserved.</p>
+          <p>© {new Date().getFullYear()} Kebeera. All rights reserved.</p>
           <p className="footer__bottom-note">
             AI assessments are not a substitute for qualified agricultural advice.
             Always consult a local agricultural expert for important farm decisions.

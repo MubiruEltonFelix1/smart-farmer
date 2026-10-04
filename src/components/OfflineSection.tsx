@@ -17,7 +17,7 @@ export default function OfflineSection() {
         <h2 id="offline-heading" className="section__title">Designed for the field.</h2>
         <p className="section__subtitle">
           African farming happens in places where connectivity is limited, intermittent, or expensive.
-          We're building Smart Farmer to work within those realities.
+          We're building Kebeera to work within those realities.
         </p>
 
         <div className="offline-grid">

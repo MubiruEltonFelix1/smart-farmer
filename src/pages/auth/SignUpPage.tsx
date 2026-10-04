@@ -40,11 +40,11 @@ export default function SignUpPage() {
   }
 
   return (
-    <div className="auth-page">
+    <div className="auth-page auth-page--signup">
       <div className="auth-card auth-card--wide">
         <Link to="/" className="auth-logo">
           <LogoMark size={40} />
-          <span className="auth-logo-text">Smart<strong>Farmer</strong></span>
+          <span className="auth-logo-text">Kebeera</span>
         </Link>
 
         <h1 className="auth-title">{t(appLocale, 'authCreateAccount')}</h1>

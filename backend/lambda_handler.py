@@ -1,5 +1,5 @@
 """
-lambda_handler.py — AWS Lambda entry point for the Smart Farmer diagnosis API.
+lambda_handler.py — AWS Lambda entry point for the Kebeera diagnosis API.
 
 Lambda cannot run an ASGI server, so Mangum translates each API Gateway event
 into the ASGI calls FastAPI expects and translates the response back. The app in

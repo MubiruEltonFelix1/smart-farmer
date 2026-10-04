@@ -16,7 +16,7 @@ export default function ImpactSection() {
           Technology that works<br />where it matters.
         </h2>
         <p className="section__subtitle">
-          Smart Farmer is early stage. These metrics will be updated as the platform grows
+          Kebeera is early stage. These metrics will be updated as the platform grows
           and data is verified.
         </p>
 
