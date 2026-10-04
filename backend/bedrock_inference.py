@@ -312,8 +312,8 @@ def _unsupported_result(reasoning: str) -> dict[str, Any]:
         "status": "Needs attention",
         "recommendations": [
             "Retake the photo in natural daylight with a single leaf filling the frame.",
-            "Smart Farmer currently recognises diseases of tomato, potato and bell pepper only.",
-            "Maize, cassava, beans, banana, coffee and rice are not supported yet.",
+            "Make sure the leaf fills most of the frame and is in sharp focus.",
+            "Supported crops: Cassava, Maize, Tomato, Banana, Potato, Coffee, Rice, Bell Pepper.",
             "For crops outside this list, consult your local agricultural extension officer.",
             f"What the model saw: {note}",
         ],
