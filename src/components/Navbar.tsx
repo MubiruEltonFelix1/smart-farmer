@@ -1,21 +1,32 @@
 import { useState, useEffect } from 'react';
 import { Link, useRouter } from '../router';
+import { useAuth } from '../auth/AuthContext';
 import { NAV_LINKS } from '../data';
-import { LogoMark, IconMenu, IconX, IconArrowRight } from './Icons';
+import { LogoMark, IconMenu, IconX, IconArrowRight, IconUser } from './Icons';
 
 export default function Navbar() {
   const [menuOpen, setMenuOpen] = useState(false);
-  const [scrolled,  setScrolled] = useState(false);
-  const { navigate } = useRouter();
+  const [scrolled, setScrolled] = useState(false);
+  const { navigate, path } = useRouter();
+  const { isAuthenticated, user } = useAuth();
+
+  const isPortal = path.startsWith('/portal');
 
   useEffect(() => {
+    if (isPortal) return;
     const onScroll = () => setScrolled(window.scrollY > 20);
     window.addEventListener('scroll', onScroll, { passive: true });
     return () => window.removeEventListener('scroll', onScroll);
-  }, []);
+  }, [isPortal]);
 
-  // close drawer on route change
-  useEffect(() => { setMenuOpen(false); }, []);
+  useEffect(() => { setMenuOpen(false); }, [path]);
+
+  if (isPortal) return null;
+
+  const allNavLinks = [
+    ...NAV_LINKS,
+    { label: 'Pricing', href: '/pricing' },
+  ];
 
   return (
     <nav
@@ -32,7 +43,7 @@ export default function Navbar() {
 
         {/* Desktop links */}
         <ul className="navbar__links" role="list">
-          {NAV_LINKS.map((link) => (
+          {allNavLinks.map((link) => (
             <li key={link.href}>
               <Link
                 to={link.href}
@@ -45,15 +56,36 @@ export default function Navbar() {
           ))}
         </ul>
 
-        {/* Desktop CTA */}
-        <button
-          className="btn btn--primary navbar__cta"
-          onClick={() => navigate('/product')}
-          aria-label="Try Crop Diagnosis"
-        >
-          Try Crop Diagnosis
-          <IconArrowRight size={15} />
-        </button>
+        {/* Desktop auth CTAs */}
+        <div className="navbar__auth-actions">
+          {isAuthenticated ? (
+            <button
+              className="btn btn--primary navbar__cta"
+              onClick={() => navigate('/portal/dashboard')}
+              aria-label="Go to Farmer Portal"
+            >
+              <IconUser size={15} />
+              {user?.name?.split(' ')[0] ?? 'Portal'}
+            </button>
+          ) : (
+            <>
+              <button
+                className="btn btn--ghost navbar__signin-btn"
+                onClick={() => navigate('/signin')}
+              >
+                Farmer Sign In
+              </button>
+              <button
+                className="btn btn--primary navbar__cta"
+                onClick={() => navigate('/product')}
+                aria-label="Try Crop Diagnosis"
+              >
+                Try Crop Diagnosis
+                <IconArrowRight size={15} />
+              </button>
+            </>
+          )}
+        </div>
 
         {/* Mobile hamburger */}
         <button
@@ -73,7 +105,7 @@ export default function Navbar() {
         id="mobile-menu"
       >
         <ul role="list">
-          {NAV_LINKS.map((link) => (
+          {allNavLinks.map((link) => (
             <li key={link.href}>
               <Link
                 to={link.href}
@@ -86,13 +118,33 @@ export default function Navbar() {
             </li>
           ))}
         </ul>
-        <button
-          className="btn btn--primary navbar__drawer-cta"
-          onClick={() => { setMenuOpen(false); navigate('/product'); }}
-        >
-          Try Crop Diagnosis
-          <IconArrowRight size={15} />
-        </button>
+
+        <div className="navbar__drawer-auth">
+          {isAuthenticated ? (
+            <button
+              className="btn btn--primary navbar__drawer-cta"
+              onClick={() => { setMenuOpen(false); navigate('/portal/dashboard'); }}
+            >
+              <IconUser size={15} /> Go to Portal
+            </button>
+          ) : (
+            <>
+              <button
+                className="btn btn--ghost navbar__drawer-cta"
+                style={{ marginBottom: 8 }}
+                onClick={() => { setMenuOpen(false); navigate('/signin'); }}
+              >
+                Farmer Sign In
+              </button>
+              <button
+                className="btn btn--primary navbar__drawer-cta"
+                onClick={() => { setMenuOpen(false); navigate('/signup'); }}
+              >
+                Create Account <IconArrowRight size={15} />
+              </button>
+            </>
+          )}
+        </div>
       </div>
     </nav>
   );

@@ -2,12 +2,14 @@
    SmartFarmer Icon Library — inline SVG, no emoji, no deps
    All icons accept className + size props.
    ───────────────────────────────────────────────────────── */
+import type { CSSProperties } from 'react';
 
 interface IconProps {
   size?: number;
   className?: string;
   'aria-hidden'?: boolean | 'true' | 'false';
   color?: string;
+  style?: CSSProperties;
 }
 
 const base = (size = 20, extra = '') =>

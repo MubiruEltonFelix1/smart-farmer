@@ -3,7 +3,18 @@ main.py — FastAPI server for Smart Farmer crop disease diagnosis.
 
 Endpoints:
   POST /api/v1/diagnose   — accepts a leaf image, returns DiagnosisResult JSON
-  GET  /api/v1/health     — liveness check
+  GET  /api/v1/health     — liveness check plus the active diagnosis provider
+
+The diagnosis engine is pluggable and selected with DIAGNOSIS_PROVIDER:
+
+  bedrock (default)  calls Amazon Bedrock (Amazon Nova) — no local model, no GPU
+  onnx               runs a local .onnx file — see requirements-onnx.txt
+
+Both providers are held to the same interface so this file does not care which
+one is active:
+  startup()  -> (ready: bool, detail: str)
+  describe() -> dict
+  diagnose(image_bytes, crop_hint, location_hint) -> dict
 
 Run locally:
   cd backend
@@ -11,50 +22,139 @@ Run locally:
 """
 
 import base64
-import io
+import importlib
 import os
+import secrets
+import sys
 from contextlib import asynccontextmanager
-from pathlib import Path
 
 from dotenv import load_dotenv
-from fastapi import FastAPI, File, Form, HTTPException, UploadFile
+from fastapi import Depends, FastAPI, File, Form, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.security import APIKeyHeader
+from starlette.concurrency import run_in_threadpool
 
-from inference import load_model, predict
+# Windows consoles default to a legacy code page (cp1252 in most locales). A log
+# line containing any character outside that code page would raise
+# UnicodeEncodeError and take the process down, which is a nasty way to lose a
+# server to a stray emoji, so make both streams tolerant before anything prints.
+for _stream in (sys.stdout, sys.stderr):
+    try:
+        _stream.reconfigure(errors="replace")
+    except (AttributeError, ValueError):  # not a TextIOWrapper, or already detached
+        pass
 
 load_dotenv()
 
 # ─── Config ──────────────────────────────────────────────────────────────────
-MODEL_PATH = os.getenv(
-    "MODEL_PATH",
-    str(Path(__file__).parent / "model" / "plantvillage.onnx"),
-)
+PROVIDER_NAME = os.getenv("DIAGNOSIS_PROVIDER", "bedrock").strip().lower() or "bedrock"
+KNOWN_PROVIDERS = {"bedrock": "bedrock_inference", "onnx": "inference"}
 
 # Origins allowed to call the API.
-# In production replace "*" with your actual frontend domain.
+# In production replace this with your actual frontend domain.
 ALLOWED_ORIGINS = os.getenv(
     "ALLOWED_ORIGINS",
     "http://localhost:5173,http://localhost:4173",
 ).split(",")
 
+MAX_BYTES = 10 * 1024 * 1024  # 10 MB
 
-# ─── Lifespan: load model once at startup ────────────────────────────────────
+# ─── API key ─────────────────────────────────────────────────────────────────
+# A shared secret required on /api/v1/diagnose. Leave it unset and the check is
+# skipped, so local development needs no configuration.
+#
+# Be clear-eyed about what this does and does not buy you. The frontend ships the
+# key inside its JavaScript bundle, so anyone who reads the bundle can extract
+# it. It therefore stops URL-pasting, scanners and drive-by abuse; it does not
+# stop a determined person. The real ceilings on cost are Lambda reserved
+# concurrency and API Gateway throttling, not this.
+#
+# Genuine authentication is not possible here without users to authenticate
+# against. If the product grows a login, replace this with Cognito or another
+# OIDC provider.
+API_KEY = os.getenv("API_KEY", "").strip()
+
+# auto_error=False so the handler below decides the response, rather than
+# FastAPI returning its own shape before our code runs. Declaring it as a
+# security scheme also gives the /docs page an Authorize button, which is how
+# you will test this endpoint by hand.
+_api_key_header = APIKeyHeader(name="X-API-Key", auto_error=False)
+
+
+async def require_api_key(key: str | None = Depends(_api_key_header)) -> None:
+    """
+    FastAPI dependency enforcing the shared-secret header, when one is configured.
+
+    compare_digest is used rather than == so the comparison takes the same time
+    regardless of how many leading characters match, which avoids leaking the
+    key one byte at a time through response timing.
+    """
+    if not API_KEY:
+        return  # not configured: open, which is the local development default
+    if not key or not secrets.compare_digest(key, API_KEY):
+        raise HTTPException(
+            status_code=401,
+            detail="Invalid or missing API key.",
+            headers={"WWW-Authenticate": "ApiKey"},
+        )
+
+
+def _load_provider():
+    """
+    Import the configured provider module.
+
+    Imports are deferred so that choosing Bedrock never requires onnxruntime to
+    be installed, and choosing ONNX never requires boto3.
+    """
+    module_name = KNOWN_PROVIDERS.get(PROVIDER_NAME)
+    if module_name is None:
+        raise RuntimeError(
+            f"DIAGNOSIS_PROVIDER={PROVIDER_NAME!r} is not recognised. "
+            f"Valid values: {', '.join(sorted(KNOWN_PROVIDERS))}."
+        )
+    try:
+        return importlib.import_module(module_name)
+    except ImportError as exc:
+        raise RuntimeError(
+            f"DIAGNOSIS_PROVIDER={PROVIDER_NAME!r} needs the {module_name!r} module, "
+            f"but it could not be imported: {exc}. Install the matching requirements "
+            "file in backend/."
+        ) from exc
+
+
+# ─── Lifespan: prepare the provider once at startup ──────────────────────────
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    model_file = Path(MODEL_PATH)
-    if not model_file.exists():
-        print(
-            f"\n⚠️  Model file not found at: {MODEL_PATH}"
-            "\n   The server will start but /api/v1/diagnose will return 503"
-            "\n   until you place plantvillage.onnx in backend/model/\n"
-        )
-        app.state.session = None
+    app.state.provider_name = PROVIDER_NAME
+    app.state.provider = None
+    app.state.ready = False
+    app.state.detail = "provider has not started yet"
+
+    try:
+        module = _load_provider()
+    except RuntimeError as exc:
+        app.state.detail = str(exc)
+        print(f"\n[warn] {exc}\n   Starting anyway so /api/v1/health can report it.\n")
+        yield
+        return
+
+    app.state.provider = module
+
+    ready, detail = module.startup()
+    app.state.ready = ready
+    app.state.detail = detail
+
+    if ready:
+        print(f"[ok] Diagnosis provider '{PROVIDER_NAME}' ready - {detail}")
     else:
-        print(f"✅  Loading model from {MODEL_PATH} …")
-        app.state.session = load_model(MODEL_PATH)
-        print("✅  Model loaded and ready.")
+        print(
+            f"\n[warn] Diagnosis provider '{PROVIDER_NAME}' is not ready - {detail}"
+            "\n   The server will start, but /api/v1/diagnose will return 503."
+            "\n   See backend/.env.example for the configuration this needs.\n"
+        )
+
     yield
-    # cleanup on shutdown (nothing needed for ONNX sessions)
+    # nothing to tear down for either provider
 
 
 # ─── App ─────────────────────────────────────────────────────────────────────
@@ -75,46 +175,51 @@ app.add_middleware(
 # ─── Health ──────────────────────────────────────────────────────────────────
 @app.get("/api/v1/health")
 def health():
-    model_ready = app.state.session is not None
+    provider = app.state.provider
+    details = provider.describe() if provider is not None else {"provider": PROVIDER_NAME}
     return {
-        "status": "ok" if model_ready else "degraded",
-        "model_loaded": model_ready,
+        "status": "ok" if app.state.ready else "degraded",
+        "ready": app.state.ready,
+        "detail": app.state.detail,
+        **details,
     }
 
 
 # ─── Diagnose ────────────────────────────────────────────────────────────────
-@app.post("/api/v1/diagnose")
+# /api/v1/health is deliberately left open so uptime checks and your own
+# "is it deployed?" checks work without the key. It reveals nothing sensitive.
+@app.post("/api/v1/diagnose", dependencies=[Depends(require_api_key)])
 async def diagnose(
     image: UploadFile | None = File(default=None),
     image_b64: str | None = Form(default=None),
-    crop: str | None = Form(default=None),       # cropHint from frontend
-    location: str | None = Form(default=None),   # locationHint from frontend
+    # max_length keeps an oversized or hostile hint out of the model prompt.
+    # Values are also sanitised again in the provider before interpolation.
+    crop: str | None = Form(default=None, max_length=64),        # cropHint from the frontend
+    location: str | None = Form(default=None, max_length=128),   # locationHint from the frontend
 ):
     """
     Accept a leaf image and return a diagnosis.
 
-    The frontend (diagnosisService.ts) sends the image as a base64 data URL
-    in the `image` form field.  This endpoint handles both:
-      - multipart file upload  (UploadFile via `image` field)
-      - base64 data URL string (string via `image` field — how the frontend sends it)
+    The frontend (diagnosisService.ts) sends the image as a base64 data URL in
+    the `image_b64` form field. This endpoint also accepts a multipart file
+    upload in the `image` field so the API stays usable from curl and other
+    clients.
 
     Returns JSON matching the DiagnosisResult TypeScript interface.
     """
-    if app.state.session is None:
-        raise HTTPException(
-            status_code=503,
-            detail="Model not loaded. Place plantvillage.onnx in backend/model/ and restart.",
-        )
+    provider = app.state.provider
+    if provider is None:
+        raise HTTPException(status_code=503, detail=app.state.detail)
 
-    # ── Read raw image bytes ──────────────────────────────────────────────────
+    # ── Read raw image bytes ─────────────────────────────────────────────────
     image_bytes: bytes | None = None
 
-    # Case 1: frontend sends base64 data URL as a plain form string
+    # Case 1: frontend sends a base64 data URL as a plain form string
     if image_b64:
         try:
-            # strip "data:image/jpeg;base64," prefix if present
+            # strip a "data:image/jpeg;base64," prefix if present
             b64_data = image_b64.split(",")[-1]
-            image_bytes = base64.b64decode(b64_data)
+            image_bytes = base64.b64decode(b64_data, validate=False)
         except Exception:
             raise HTTPException(status_code=400, detail="Invalid base64 image data.")
 
@@ -128,18 +233,36 @@ async def diagnose(
             detail="No image provided. Send an image file or a base64 data URL.",
         )
 
-    # ── Validate size (10 MB) ─────────────────────────────────────────────────
-    MAX_BYTES = 10 * 1024 * 1024
+    # ── Validate size (10 MB) ────────────────────────────────────────────────
     if len(image_bytes) > MAX_BYTES:
         raise HTTPException(status_code=413, detail="Image exceeds 10 MB limit.")
 
-    # ── Run inference ─────────────────────────────────────────────────────────
+    # ── Run the diagnosis ────────────────────────────────────────────────────
+    # Both providers are synchronous and block for the length of a network round
+    # trip (Bedrock) or a forward pass (ONNX). Calling them directly from this
+    # async endpoint would stall the event loop and serialise every other
+    # request behind it, so hand the work to the threadpool.
     try:
-        result = predict(image_bytes, app.state.session)
+        return await run_in_threadpool(
+            provider.diagnose,
+            image_bytes,
+            crop_hint=crop,
+            location_hint=location,
+        )
     except Exception as exc:
+        # Providers raise typed errors carrying the HTTP status to return and a
+        # message that is safe to show a farmer. Anything without a status_code
+        # is a bug here, so it becomes a 500 rather than leaking a traceback.
+        status_code = getattr(exc, "status_code", None)
+        if status_code is not None:
+            print(f"[warn] Diagnosis failed ({status_code}): {exc}")
+            raise HTTPException(
+                status_code=status_code,
+                detail=getattr(exc, "user_message", "Analysis failed."),
+            ) from exc
+
+        print(f"[error] Unexpected diagnosis failure: {exc!r}")
         raise HTTPException(
             status_code=500,
-            detail=f"Inference failed: {str(exc)}",
-        )
-
-    return result
+            detail="Analysis failed unexpectedly. Please try again.",
+        ) from exc

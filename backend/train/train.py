@@ -19,11 +19,11 @@ Outputs plantvillage.onnx — drop it into backend/model/ when done.
 3. Run from the repo root:
        python backend/train/train.py
 
-4. Copy the output model into place:
-       cp backend/model/plantvillage.onnx backend/model/plantvillage.onnx
+4. The script writes backend/model/plantvillage.onnx directly, so there is nothing
+   further to copy. Point the server at it with DIAGNOSIS_PROVIDER=onnx.
 ──────────────────────────────────────────────────────────────────────────────
 
-Dataset classes (15 total, sorted alphabetically — must match inference.py):
+Dataset classes (15 total, sorted alphabetically — must match taxonomy.py):
    0  Pepper__bell___Bacterial_spot
    1  Pepper__bell___healthy
    2  Potato___Early_blight

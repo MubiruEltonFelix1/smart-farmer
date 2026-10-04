@@ -1,22 +1,27 @@
-import PageHeader from '../components/PageHeader';
-import SolutionSection from '../components/SolutionSection';
+import { useState } from 'react';
 import ProductDemo from '../components/ProductDemo';
-import CropCoverage from '../components/CropCoverage';
-import DashboardPreview from '../components/DashboardPreview';
+import DiagnosisCropList from '../components/DiagnosisCropList';
 import CTASection from '../components/CTASection';
+import type { Locale } from '../i18n/translations';
 
+/**
+ * ProductPage — the "Try Crop Diagnosis" destination.
+ *
+ * Layout order (intentional):
+ *   1. Upload / Take Photo box  ← first thing the user sees
+ *   2. Supported crops + detectable diseases
+ *   3. CTA footer
+ *
+ * locale is lifted here so DiagnosisCropList stays in sync with
+ * whatever language the user selects in ProductDemo.
+ */
 export default function ProductPage() {
+  const [locale, setLocale] = useState<Locale>('en');
+
   return (
     <>
-      <PageHeader
-        eyebrow="PRODUCT"
-        title="Agricultural expertise, in your pocket."
-        subtitle="Smart Farmer turns a crop leaf photograph into an actionable diagnosis. Take a photo, understand the problem, know what to do next."
-      />
-      <SolutionSection />
-      <ProductDemo />
-      <CropCoverage />
-      <DashboardPreview />
+      <ProductDemo locale={locale} onLocaleChange={setLocale} />
+      <DiagnosisCropList locale={locale} />
       <CTASection />
     </>
   );
