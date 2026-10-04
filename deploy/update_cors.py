@@ -13,6 +13,7 @@ FUNCTION_NAME = "smart-farmer-diagnose"
 REGION = os.getenv("AWS_REGION", "us-east-1")
 
 NEW_ORIGINS = ",".join([
+    "https://kebeera.vercel.app",
     "https://smart-farmer-naqogp8da-mubirueltonfelix-3337s-projects.vercel.app",
     "https://smart-farmer-blond-seven.vercel.app",
     "http://localhost:5173",
@@ -27,6 +28,10 @@ env_vars = current.get("Environment", {}).get("Variables", {})
 
 # Update just ALLOWED_ORIGINS
 env_vars["ALLOWED_ORIGINS"] = NEW_ORIGINS
+env_vars["ALLOWED_ORIGIN_REGEX"] = os.getenv(
+    "ALLOWED_ORIGIN_REGEX",
+    r"https://[a-zA-Z0-9-]+\.vercel\.app",
+)
 
 response = client.update_function_configuration(
     FunctionName=FUNCTION_NAME,

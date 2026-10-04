@@ -698,6 +698,10 @@ def main() -> None:
             "BEDROCK_MAX_TOKENS": args.max_tokens,
             "BEDROCK_TEMPERATURE": args.temperature,
             "ALLOWED_ORIGINS": args.allowed_origins,
+            "ALLOWED_ORIGIN_REGEX": os.getenv(
+                "ALLOWED_ORIGIN_REGEX",
+                r"https://[a-zA-Z0-9-]+\.vercel\.app",
+            ),
             "API_KEY": api_key,
         }
         # AWS_PROFILE is intentionally absent. On Lambda credentials come from the

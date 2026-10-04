@@ -1194,6 +1194,20 @@ h1,h2,h3,h4,h5,h6 { font-family: var(--font-heading); color: var(--color-dark); 
   font-size: 0.85rem; color: var(--color-green);
 }
 .auth-demo-label { display: inline-flex; align-items: center; gap: 7px; }
+.camera-modal {
+  position: fixed; inset: 0; z-index: 1000; display: grid; place-items: center;
+  padding: 20px; background: rgba(16, 32, 24, 0.78);
+}
+.camera-modal__card {
+  width: min(100%, 560px); overflow: hidden; background: var(--color-surface);
+  border-radius: var(--radius-lg); box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+}
+.camera-modal__video {
+  display: block; width: 100%; max-height: 70vh; object-fit: cover; background: #111;
+}
+.camera-modal__actions {
+  display: flex; justify-content: center; gap: 10px; padding: 16px;
+}
 .auth-demo-btn {
   font-size: 0.8rem; font-weight: 600; color: var(--color-green);
   text-decoration: underline; cursor: pointer;

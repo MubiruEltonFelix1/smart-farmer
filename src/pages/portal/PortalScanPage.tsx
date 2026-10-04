@@ -3,7 +3,7 @@
  * Wraps the existing ProductDemo flow with portal-specific features:
  * quota enforcement, crop selector, notes, save to history.
  */
-import { useState, useRef, type DragEvent } from 'react';
+import { useState, useRef, useEffect, type DragEvent } from 'react';
 import { useAuth } from '../../auth/AuthContext';
 import { useRouter } from '../../router';
 import { t } from '../../i18n/translations';
@@ -40,13 +40,64 @@ export default function PortalScanPage() {
   const [cropType, setCropType] = useState('');
   const [notes,    setNotes]    = useState('');
   const [affectedPct, setAffectedPct] = useState('');
+  const [cameraOpen, setCameraOpen] = useState(false);
 
   const fileRef = useRef<HTMLInputElement>(null);
   const cameraRef = useRef<HTMLInputElement>(null);
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const streamRef = useRef<MediaStream | null>(null);
 
   const scanUsed  = quota?.scansUsedToday ?? 0;
   const scanLimit = quota?.scanLimitDaily ?? 3;
   const atLimit   = user?.plan === 'free' && scanUsed >= scanLimit;
+
+  useEffect(() => () => stopCamera(), []);
+
+  function stopCamera() {
+    streamRef.current?.getTracks().forEach(track => track.stop());
+    streamRef.current = null;
+    setCameraOpen(false);
+  }
+
+  async function openCamera() {
+    if (!navigator.mediaDevices?.getUserMedia) {
+      cameraRef.current?.click();
+      return;
+    }
+
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: { ideal: 'environment' } },
+        audio: false,
+      });
+      streamRef.current = stream;
+      setCameraOpen(true);
+      requestAnimationFrame(() => {
+        if (videoRef.current) {
+          videoRef.current.srcObject = stream;
+          void videoRef.current.play();
+        }
+      });
+    } catch {
+      setError('Camera access was unavailable. Please allow camera permission or upload an image instead.');
+      setState('error');
+    }
+  }
+
+  function capturePhoto() {
+    const video = videoRef.current;
+    if (!video || video.videoWidth === 0 || video.videoHeight === 0) return;
+
+    const canvas = document.createElement('canvas');
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+    canvas.getContext('2d')?.drawImage(video, 0, 0);
+    canvas.toBlob(blob => {
+      if (!blob) return;
+      stopCamera();
+      handleFile(new File([blob], `kebeera-photo-${Date.now()}.jpg`, { type: 'image/jpeg' }));
+    }, 'image/jpeg', 0.92);
+  }
 
   function handleFile(f: File) {
     if (f.size > 10 * 1024 * 1024) { setError('Image must be under 10 MB.'); setState('error'); return; }
@@ -122,6 +173,7 @@ export default function PortalScanPage() {
   }
 
   function reset() {
+    stopCamera();
     setState('idle');
     setPreview(null);
     setFile(null);
@@ -177,7 +229,7 @@ export default function PortalScanPage() {
                 <button className="btn btn--primary diag-btn-upload" onClick={() => fileRef.current?.click()}>
                   <IconUpload size={15} /> {t(locale, 'btnUpload')}
                 </button>
-                <button className="btn btn--secondary diag-btn-camera" onClick={() => cameraRef.current?.click()}>
+                <button className="btn btn--secondary diag-btn-camera" onClick={openCamera}>
                   <IconCamera size={15} /> {t(locale, 'btnTakePhoto')}
                 </button>
               </div>
@@ -186,6 +238,20 @@ export default function PortalScanPage() {
                 onChange={e => { const f = e.target.files?.[0]; if (f) handleFile(f); }} />
               <input ref={cameraRef} type="file" accept="image/*" capture="environment" hidden
                 onChange={e => { const f = e.target.files?.[0]; if (f) handleFile(f); }} />
+            </div>
+          )}
+
+          {cameraOpen && (
+            <div className="camera-modal" role="dialog" aria-modal="true" aria-label="Take a crop photo">
+              <div className="camera-modal__card">
+                <video ref={videoRef} className="camera-modal__video" autoPlay playsInline muted />
+                <div className="camera-modal__actions">
+                  <button className="btn btn--primary btn--large" onClick={capturePhoto}>
+                    <IconCamera size={16} /> Take photo
+                  </button>
+                  <button className="btn btn--ghost" onClick={stopCamera}>Cancel</button>
+                </div>
+              </div>
             </div>
           )}
 

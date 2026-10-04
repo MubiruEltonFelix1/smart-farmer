@@ -58,6 +58,10 @@ ALLOWED_ORIGINS = os.getenv(
     "ALLOWED_ORIGINS",
     "http://localhost:5173,http://localhost:4173",
 ).split(",")
+ALLOWED_ORIGIN_REGEX = os.getenv(
+    "ALLOWED_ORIGIN_REGEX",
+    r"https://[a-zA-Z0-9-]+\.vercel\.app",
+).strip() or None
 
 MAX_BYTES = 10 * 1024 * 1024  # 10 MB
 
@@ -196,6 +200,7 @@ app = FastAPI(
 app.add_middleware(
     CORSMiddleware,
     allow_origins=ALLOWED_ORIGINS,
+    allow_origin_regex=ALLOWED_ORIGIN_REGEX,
     allow_methods=["POST", "GET"],
     allow_headers=["*"],
 )
