@@ -5,7 +5,9 @@ import {
   IconUpload, IconSearch, IconClose, IconInfo,
   IconBrain, IconCheck, IconWarning,
 } from './Icons';
-import { TRANSLATIONS, LOCALE_LABELS, type Locale } from '../i18n/translations';
+import {
+  TRANSLATIONS, LOCALE_LABELS, cropName, severityLabel, statusLabel, type Locale,
+} from '../i18n/translations';
 
 type DemoState = 'idle' | 'preview' | 'analyzing' | 'result' | 'error';
 
@@ -50,7 +52,7 @@ export default function ProductDemo({ locale: localeProp, onLocaleChange }: Prop
   // ── file handling ─────────────────────────────────────────────────────────
   const handleFile = (file: File) => {
     const v = validateImage(file);
-    if (!v.valid) { setError(v.error ?? 'Invalid image.'); setState('error'); return; }
+    if (!v.valid) { setError(t[v.errorKey]); setState('error'); return; }
     const reader = new FileReader();
     reader.onload = (e) => setPreview(e.target?.result as string);
     reader.readAsDataURL(file);
@@ -69,11 +71,15 @@ export default function ProductDemo({ locale: localeProp, onLocaleChange }: Prop
       setTimeout(() => { setResult(res); setState('result'); }, 400);
     } catch (err: unknown) {
       clearInterval(interval);
-      const userMessage =
-        err instanceof Error && 'userMessage' in err
-          ? (err as Error & { userMessage: string }).userMessage
-          : "We couldn't analyze this image. Try taking a clearer photo of the leaf in good lighting.";
-      setError(userMessage);
+      const code = err instanceof Error && 'code' in err
+        ? (err as Error & { code: string }).code
+        : 'UNKNOWN';
+      const byCode: Record<string, string> = {
+        NETWORK: t.errNetwork,
+        SERVER: t.errServer,
+        IMAGE_QUALITY: t.errImageTooLarge,
+      };
+      setError(byCode[code] ?? t.errAnalyzeFailed);
       setState('error');
     }
   };
@@ -97,10 +103,10 @@ export default function ProductDemo({ locale: localeProp, onLocaleChange }: Prop
       const blob = await res.blob();
       const reader = new FileReader();
       reader.onload  = (e) => { setPreview(e.target?.result as string); setState('preview'); };
-      reader.onerror = () => { setError('Could not read the sample image.'); setState('error'); };
+      reader.onerror = () => { setError(t.errDemoRead); setState('error'); };
       reader.readAsDataURL(blob);
     } catch {
-      setError('The sample image is missing from this build. Please upload your own leaf photo.');
+      setError(t.errDemoMissing);
       setState('error');
     }
   };
@@ -213,8 +219,8 @@ export default function ProductDemo({ locale: localeProp, onLocaleChange }: Prop
             {state === 'preview' && preview && (
               <div className="diag-preview">
                 <div className="diag-preview__img-wrap">
-                  <img src={preview} alt="Uploaded crop leaf" className="diag-preview__img" />
-                  <button className="diag-preview__remove" onClick={reset} aria-label="Remove image">
+                  <img src={preview} alt={t.uploadedLeafAlt} className="diag-preview__img" />
+                  <button className="diag-preview__remove" onClick={reset} aria-label={t.removeImage}>
                     <IconClose size={16} />
                   </button>
                 </div>
@@ -250,7 +256,7 @@ export default function ProductDemo({ locale: localeProp, onLocaleChange }: Prop
                   aria-valuenow={Math.round(progress)}
                   aria-valuemin={0}
                   aria-valuemax={100}
-                  aria-label="Analysis progress"
+                  aria-label={t.analysisProgress}
                 >
                   <div className="diag-progress__fill" style={{ width: `${Math.min(progress, 100)}%` }} />
                 </div>
@@ -262,10 +268,10 @@ export default function ProductDemo({ locale: localeProp, onLocaleChange }: Prop
             {state === 'result' && result && (
               <div className="diag-result">
                 <div className="diag-result__header">
-                  <div className="diag-result__crop-badge"><span>{result.crop}</span></div>
+                  <div className="diag-result__crop-badge"><span>{cropName(locale, result.crop)}</span></div>
                   <div className="diag-result__status"
                     style={{ color: result.severity === 'Healthy' ? 'var(--color-green)' : 'var(--color-gold)' }}>
-                    {result.status}
+                    {statusLabel(locale, result.status)}
                   </div>
                 </div>
                 <h3 className="diag-result__condition">{result.disease}</h3>
@@ -276,7 +282,7 @@ export default function ProductDemo({ locale: localeProp, onLocaleChange }: Prop
                   </div>
                   <div className="diag-result__metric">
                     <span className="diag-result__metric-val" style={{ color: severityColor(result.severity) }}>
-                      {result.severity}
+                      {severityLabel(locale, result.severity)}
                     </span>
                     <span className="diag-result__metric-label">{t.severity}</span>
                   </div>

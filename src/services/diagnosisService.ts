@@ -102,16 +102,20 @@ export async function analyzeCropImage(
 /**
  * Validate that an image file is suitable for analysis before uploading.
  */
-export function validateImage(file: File): { valid: boolean; error?: string } {
+export type ImageValidationError = 'errInvalidType' | 'errTooLarge';
+
+export function validateImage(
+  file: File
+): { valid: true } | { valid: false; errorKey: ImageValidationError } {
   const SUPPORTED_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/heic'];
   const MAX_SIZE_MB = 10;
 
   if (!SUPPORTED_TYPES.includes(file.type)) {
-    return { valid: false, error: 'Please use a JPEG, PNG, or WebP image.' };
+    return { valid: false, errorKey: 'errInvalidType' };
   }
 
   if (file.size > MAX_SIZE_MB * 1024 * 1024) {
-    return { valid: false, error: `Image must be smaller than ${MAX_SIZE_MB} MB.` };
+    return { valid: false, errorKey: 'errTooLarge' };
   }
 
   return { valid: true };
