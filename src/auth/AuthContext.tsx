@@ -33,6 +33,7 @@ interface AuthContextValue {
   /* Profile actions */
   updateProfile: (updates: Partial<FarmerProfile>) => Promise<void>;
   refreshQuota:  ()                                => Promise<void>;
+  resetDemoChatCredits: ()                         => Promise<void>;
   consumeScan:   ()                                => Promise<boolean>; // false = limit hit
   consumeChat:   ()                                => Promise<boolean>;
 
@@ -71,6 +72,7 @@ const AuthContext = createContext<AuthContextValue>({
   deleteAccount: async () => {},
   updateProfile: async () => {},
   refreshQuota: async () => {},
+  resetDemoChatCredits: async () => {},
   consumeScan: async () => false,
   consumeChat: async () => false,
   locale: 'en',
@@ -153,6 +155,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setQuota(q);
   }, [user]);
 
+  const resetDemoChatCredits = useCallback(async () => {
+    if (!user?.isDemo) return;
+    const q = await mockAuthService.resetDemoChatCredits(user.id);
+    setQuota(q);
+  }, [user]);
+
   const consumeScan = useCallback(async (): Promise<boolean> => {
     if (!user || !quota) return false;
     const result = await mockAuthService.consumeScan(user.id);
@@ -180,7 +188,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       user, profile, quota, loading,
       isAuthenticated: !!user,
       signIn, signUp, signOut, deleteAccount,
-      updateProfile, refreshQuota, consumeScan, consumeChat,
+      updateProfile, refreshQuota, resetDemoChatCredits, consumeScan, consumeChat,
       locale, setLocale,
     }}>
       {children}

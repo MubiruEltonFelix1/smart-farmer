@@ -17,7 +17,9 @@ function uid() { return Math.random().toString(36).slice(2) + Date.now().toStrin
  */
 
 export default function AssistantPage() {
-  const { user, quota, locale: appLocale, consumeChat, setLocale } = useAuth();
+  const {
+    user, quota, locale: appLocale, consumeChat, resetDemoChatCredits, setLocale,
+  } = useAuth();
   const [locale,   setLocalLocale] = useState<Locale>(appLocale);
   const [convos,   setConvos]   = useState<ChatConversation[]>([]);
   const [active,   setActive]   = useState<ChatConversation | null>(null);
@@ -141,6 +143,16 @@ export default function AssistantPage() {
         <div className="assistant-credits-display">
           <IconStar size={14} />
           <span>{chatLeft} {t(locale, 'assistantCreditsLeft')}</span>
+          {user?.isDemo && (
+            <button
+              type="button"
+              className="btn btn--ghost"
+              onClick={resetDemoChatCredits}
+              style={{ fontSize: '0.75rem', padding: '4px 8px', marginLeft: 'auto' }}
+            >
+              {t(locale, 'assistantRefreshCredits')}
+            </button>
+          )}
         </div>
 
         <div className="assistant-convo-list">

@@ -269,6 +269,7 @@ export interface PortalTranslations {
   assistantPlaceholder: string;
   assistantSend: string;
   assistantCreditsLeft: string;
+  assistantRefreshCredits: string;
   assistantCreditWarning: string;
   assistantOutOfCredits: string;
   assistantGetMoreCredits: string;
@@ -594,6 +595,7 @@ const en: AppTranslations = {
   assistantPlaceholder: 'Ask anything about your crops…',
   assistantSend: 'Send',
   assistantCreditsLeft: 'credits left',
+  assistantRefreshCredits: 'Refresh credits',
   assistantCreditWarning: 'You have 1 credit remaining today.',
   assistantOutOfCredits: 'You have used all your chat credits for today.',
   assistantGetMoreCredits: 'Get More Credits',
@@ -917,6 +919,7 @@ const lg: AppTranslations = {
   assistantPlaceholder: 'Buuza ekyaka ku birime byawe…',
   assistantSend: 'Tuma',
   assistantCreditsLeft: 'amanukuvu asigadde',
+  assistantRefreshCredits: 'Zza amanukuvu',
   assistantCreditWarning: 'Olina omanukuvu omu asigadde leero.',
   assistantOutOfCredits: "Okozesezza amanukuvu go gonna g'okwogera leero.",
   assistantGetMoreCredits: 'Funa Amanukuvu Amasingawo',
@@ -1240,6 +1243,7 @@ const nyn: AppTranslations = {
   assistantPlaceholder: 'Baza ekyaka ku bihingwa byawe…',
   assistantSend: 'Tuma',
   assistantCreditsLeft: 'amanukuvu asigaire',
+  assistantRefreshCredits: 'Zza amanukuvu',
   assistantCreditWarning: 'Ufite omanukuvu omwe asigaire erizooba.',
   assistantOutOfCredits: "Okozeseza amanukuvu gawe gona g'okunyumba erizooba.",
   assistantGetMoreCredits: 'Funa Amanukuvu Amasingawo',

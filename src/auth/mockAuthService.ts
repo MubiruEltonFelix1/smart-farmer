@@ -288,6 +288,21 @@ export const mockAuthService = {
     return { ok: true, quota: updated };
   },
 
+  async resetDemoChatCredits(userId: string): Promise<UsageQuota> {
+    if (userId !== DEMO_USER_ID) {
+      throw new Error('Chat credit reset is only available for the demo account.');
+    }
+
+    const q = await this.getQuota(userId);
+    const updated: UsageQuota = {
+      ...q,
+      chatCreditsUsedToday: 0,
+      chatCreditsUsedMonth: 0,
+    };
+    persist(`sf_quota_${userId}`, updated);
+    return updated;
+  },
+
   async updateLocale(userId: string, locale: Locale): Promise<void> {
     const user = load<User>(`sf_user_${userId}`);
     if (user) persist(`sf_user_${userId}`, { ...user, locale });
