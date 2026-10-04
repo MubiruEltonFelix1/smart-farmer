@@ -96,7 +96,28 @@ export async function sendChatMessage(
     if (response.status === 401) {
       throw buildError('SERVER', msg, 'The assistant service is not configured correctly. Please try again shortly.');
     }
-    throw buildError('SERVER', msg, "The assistant couldn't respond right now. Please try again.");
+    if (response.status === 404) {
+      throw buildError(
+        'SERVER',
+        msg,
+        'The chat API was not found. Set VITE_API_BASE to the deployed backend URL and rebuild the frontend.',
+        response.status,
+      );
+    }
+    if (response.status >= 500) {
+      throw buildError(
+        'SERVER',
+        msg,
+        'The chat server encountered an error. Check that the backend is running and its Bedrock configuration is valid.',
+        response.status,
+      );
+    }
+    throw buildError(
+      'SERVER',
+      msg,
+      "The assistant couldn't respond right now. Please try again.",
+      response.status,
+    );
   }
 
   const data = (await response.json()) as ChatResponse;
