@@ -27,11 +27,13 @@ import os
 import secrets
 import sys
 from contextlib import asynccontextmanager
+from typing import Literal
 
 from dotenv import load_dotenv
 from fastapi import Depends, FastAPI, File, Form, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import APIKeyHeader
+from pydantic import BaseModel, Field
 from starlette.concurrency import run_in_threadpool
 
 # Windows consoles default to a legacy code page (cp1252 in most locales). A log
@@ -58,6 +60,12 @@ ALLOWED_ORIGINS = os.getenv(
 ).split(",")
 
 MAX_BYTES = 10 * 1024 * 1024  # 10 MB
+
+# Max characters accepted in a single chat message from the frontend.
+# Long enough for a detailed question; short enough to stop prompt-stuffing.
+MAX_CHAT_MSG_CHARS = 2000
+# Max number of messages the frontend may send per request (full history).
+MAX_CHAT_HISTORY   = 80  # 40 turns × 2
 
 # ─── API key ─────────────────────────────────────────────────────────────────
 # A shared secret required on /api/v1/diagnose. Leave it unset and the check is
@@ -130,6 +138,7 @@ async def lifespan(app: FastAPI):
     app.state.ready = False
     app.state.detail = "provider has not started yet"
 
+    # ── Diagnosis provider ────────────────────────────────────────────────────
     try:
         module = _load_provider()
     except RuntimeError as exc:
@@ -153,8 +162,28 @@ async def lifespan(app: FastAPI):
             "\n   See backend/.env.example for the configuration this needs.\n"
         )
 
+    # ── Chat provider (bedrock_chat) ──────────────────────────────────────────
+    try:
+        import bedrock_chat as _chat_module  # noqa: PLC0415
+        chat_ready, chat_detail = _chat_module.startup()
+        app.state.chat_module = _chat_module
+        app.state.chat_ready  = chat_ready
+        app.state.chat_detail = chat_detail
+        if chat_ready:
+            print(f"[ok] Chat provider ready - {chat_detail}")
+        else:
+            print(
+                f"\n[warn] Chat provider is not ready - {chat_detail}"
+                "\n   /api/v1/chat will return 503 until credentials are configured.\n"
+            )
+    except ImportError as exc:
+        app.state.chat_module = None
+        app.state.chat_ready  = False
+        app.state.chat_detail = f"bedrock_chat could not be imported: {exc}"
+        print(f"\n[warn] Chat module unavailable: {exc}\n")
+
     yield
-    # nothing to tear down for either provider
+    # nothing to tear down
 
 
 # ─── App ─────────────────────────────────────────────────────────────────────
@@ -176,12 +205,19 @@ app.add_middleware(
 @app.get("/api/v1/health")
 def health():
     provider = app.state.provider
-    details = provider.describe() if provider is not None else {"provider": PROVIDER_NAME}
+    diag_details = provider.describe() if provider is not None else {"provider": PROVIDER_NAME}
+
+    chat_module  = getattr(app.state, "chat_module", None)
+    chat_details = chat_module.describe() if chat_module is not None else {"provider": "bedrock-chat"}
+
     return {
         "status": "ok" if app.state.ready else "degraded",
-        "ready": app.state.ready,
+        "ready":  app.state.ready,
         "detail": app.state.detail,
-        **details,
+        "chat_ready":  getattr(app.state, "chat_ready",  False),
+        "chat_detail": getattr(app.state, "chat_detail", "not initialised"),
+        **diag_details,
+        "chat": chat_details,
     }
 
 
@@ -266,3 +302,83 @@ async def diagnose(
             status_code=500,
             detail="Analysis failed unexpectedly. Please try again.",
         ) from exc
+
+
+# ─── Chat request / response models ──────────────────────────────────────────
+class ChatMessageIn(BaseModel):
+    """A single turn in the conversation history sent by the frontend."""
+    role:    Literal["user", "assistant"]
+    content: str = Field(..., max_length=MAX_CHAT_MSG_CHARS)
+
+
+class ChatRequest(BaseModel):
+    """
+    Body for POST /api/v1/chat.
+
+    `messages` is the full conversation history (newest last), matching the
+    ChatMessage[] shape used by AssistantPage.tsx.  The backend appends nothing
+    to it — the caller is the source of truth for history.
+
+    `locale` tells the model which language to prefer when the farmer's message
+    is ambiguous (en / lg / nyn).
+    """
+    messages: list[ChatMessageIn] = Field(..., min_length=1, max_length=MAX_CHAT_HISTORY)
+    locale:   str                  = Field(default="en", max_length=8)
+
+
+class ChatResponse(BaseModel):
+    reply: str
+
+
+# ─── Chat ─────────────────────────────────────────────────────────────────────
+@app.post("/api/v1/chat", response_model=ChatResponse, dependencies=[Depends(require_api_key)])
+async def chat_endpoint(body: ChatRequest):
+    """
+    Accept a conversation history and return the next assistant reply.
+
+    The frontend sends the full message history on every turn so the model has
+    context.  This endpoint is stateless: it does not store anything — history
+    lives in the frontend (AssistantPage state + mockAuthService).
+
+    Returns JSON: { "reply": "<assistant text>" }
+    """
+    chat_module = getattr(app.state, "chat_module", None)
+    if chat_module is None:
+        raise HTTPException(
+            status_code=503,
+            detail=getattr(app.state, "chat_detail", "Chat module is not available."),
+        )
+
+    if not getattr(app.state, "chat_ready", False):
+        raise HTTPException(
+            status_code=503,
+            detail=getattr(app.state, "chat_detail", "Chat service is not ready yet."),
+        )
+
+    # Sanitise locale to the three supported values; fall back to English.
+    locale = body.locale.strip().lower()
+    if locale not in ("en", "lg", "nyn"):
+        locale = "en"
+
+    messages = [{"role": m.role, "content": m.content} for m in body.messages]
+
+    try:
+        reply = await run_in_threadpool(chat_module.chat, messages, locale)
+    except Exception as exc:
+        status_code  = getattr(exc, "status_code",  None)
+        user_message = getattr(exc, "user_message", None)
+
+        if status_code is not None:
+            print(f"[warn] Chat failed ({status_code}): {exc}")
+            raise HTTPException(
+                status_code=status_code,
+                detail=user_message or "Chat failed.",
+            ) from exc
+
+        print(f"[error] Unexpected chat failure: {exc!r}")
+        raise HTTPException(
+            status_code=500,
+            detail="The assistant couldn't respond right now. Please try again.",
+        ) from exc
+
+    return ChatResponse(reply=reply)

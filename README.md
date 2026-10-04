@@ -1,262 +1,300 @@
-# Smart Farmer
+# SmartFarmer — AI-Powered Crop Disease Detection
 
-Smart Farmer is an agricultural crop-disease diagnosis product. This repository contains the
-marketing site plus a working **Product Demo**: a farmer uploads a photo of a leaf and receives a
-diagnosis — crop, disease, severity, status and agronomic recommendations.
+> Turn a photo of your crop into actionable farming intelligence.
 
-- **Frontend** — React + TypeScript + Vite (this is the whole site and the demo UI).
-- **Backend** — FastAPI service in `backend/` that runs the actual diagnosis.
-
-The demo is wired: the frontend posts the image to the backend, the backend runs the
-diagnosis and returns JSON that the UI renders. The one exception is the **Use Demo Image**
-button — see the note in [Known limitations](#known-limitations).
+SmartFarmer is a mobile-first web application for African smallholder farmers. It provides AI-powered crop leaf disease diagnosis, weather forecasts, local disease outbreak tracking, a multilingual AI farming assistant, and a complete farmer portal.
 
 ---
 
-## Repository layout
-
-```
-src/                 React app (components, pages, router, services, types)
-  services/          diagnosisService.ts — the frontend/backend contract
-backend/             FastAPI service
-  main.py            API app (endpoints, CORS, upload limits, provider switch)
-  bedrock_inference.py  Default provider — Amazon Bedrock (Amazon Nova)
-  inference.py       Optional local ONNX provider (DIAGNOSIS_PROVIDER=onnx)
-  taxonomy.py        15 PlantVillage labels + crop/severity/status/recommendations maps
-  .env.example       Template for backend configuration (copy to .env)
-  requirements.txt       Dependencies for the default Bedrock path
-  requirements-onnx.txt  Extra dependencies for the local ONNX path only
-  train/train.py     Fine-tuning script (EfficientNet-B0 → plantvillage.onnx)
-  model/             Where a local .onnx model file goes (gitignored, not shipped)
-vite.config.ts       Dev server + /api proxy to the backend
-```
-
----
-
-## Frontend
-
-Requirements: Node.js and npm.
+## Quick Start (Development)
 
 ```bash
+# Install frontend dependencies
 npm install
-npm run dev      # Vite dev server, http://localhost:5173
+
+# Copy and configure environment variables
+cp .env.example .env
+# (edit .env — see Environment Variables section below)
+
+# Start the frontend dev server
+npm run dev
+# → http://localhost:5173
+
+# In a separate terminal, start the backend (optional for demo mode)
+cd backend
+pip install -r requirements.txt
+python main.py
+# → http://localhost:8000
 ```
 
-Other scripts defined in `package.json`:
+### Demo Account
 
-```bash
-npm run build    # tsc -b && vite build  → output in dist/
-npm run lint     # eslint .
-npm run preview  # serve the production build locally (port 4173)
-```
+Sign in at `/signin` with:
+- **Email:** `demo@smartfarmer.ai`
+- **Password:** any password (demo bypass)
 
-`vite.config.ts` proxies every request starting with `/api` to `http://localhost:8000`, so the dev
-server can call the backend with same-origin URLs and no CORS problems. In production, point the
-frontend at the deployed API instead by setting `VITE_API_BASE` (see
-`src/services/diagnosisService.ts`).
+Or create a new account at `/signup`. Demo data is pre-seeded automatically.
+
+All portal data is stored in `localStorage` in demo mode — nothing is sent to a server unless the backend is running.
 
 ---
 
-## Backend
+## Routes
 
-Requirements: Python 3.10+ (the backend uses `X | None` type syntax).
+| Path | Description |
+|------|-------------|
+| `/` | Landing page |
+| `/product` | Crop diagnosis demo |
+| `/how-it-works` | Process explanation |
+| `/technology` | Technology overview |
+| `/solutions` | Partner & solutions |
+| `/pricing` | Pricing page |
+| `/about` | About page |
+| `/signin` | Farmer sign-in |
+| `/signup` | Create farmer account |
+| `/onboarding` | Post-signup farm setup wizard |
+| `/portal/dashboard` | Farmer portal dashboard |
+| `/portal/scan` | Crop leaf scan |
+| `/portal/history` | Scan history |
+| `/portal/weather` | Weather forecast & alerts |
+| `/portal/outbreaks` | Local disease outbreak trends |
+| `/portal/profile` | Farm & farmer profile |
+| `/portal/assistant` | AI farm assistant chat |
+| `/portal/plans` | Plans & credits |
+| `/portal/settings` | Settings & account management |
+
+All routes work on direct load and refresh (Vercel SPA rewrite configured in `vercel.json`).
+
+---
+
+## Environment Variables
+
+### Frontend (Vite — prefix `VITE_`)
+
+Create a `.env` file in the project root:
+
+```env
+# Base URL of your deployed backend API
+# Leave empty in development (Vite proxies /api → localhost:8000)
+VITE_API_BASE=
+
+# Optional shared secret for the backend API key check
+# Sent as X-API-Key header. Not a substitute for real auth.
+VITE_API_KEY=
+
+# Set to "true" to allow the demo account shortcut in production
+VITE_DEMO_ENABLED=true
+```
+
+### Backend (FastAPI)
+
+Create `backend/.env` from `backend/.env.example`:
+
+```env
+# AI provider: "bedrock" (default) or "onnx"
+DIAGNOSIS_PROVIDER=bedrock
+
+# AWS (for Bedrock provider)
+AWS_REGION=us-east-1
+AWS_PROFILE=
+BEDROCK_MODEL_ID=amazon.nova-lite-v1:0
+BEDROCK_MAX_IMAGE_DIM=1024
+BEDROCK_MAX_TOKENS=400
+BEDROCK_TEMPERATURE=0
+
+# CORS — add your frontend URL
+ALLOWED_ORIGINS=http://localhost:5173,https://your-app.vercel.app
+
+# Optional: shared API key (empty = disabled)
+API_KEY=
+
+# ONNX local model path (only if DIAGNOSIS_PROVIDER=onnx)
+# MODEL_PATH=./model/plantvillage.onnx
+```
+
+---
+
+## Auth Setup
+
+The portal uses a **mock auth service** (`src/auth/mockAuthService.ts`) that persists data in `localStorage`. This is intentional for the demo — no external auth service is required to run locally.
+
+### Replacing with real auth (e.g. Supabase)
+
+1. Install your auth client: `npm install @supabase/supabase-js`
+2. Create `src/auth/supabaseAuthService.ts` implementing the same interface as `mockAuthService`
+3. Add env vars: `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`
+4. Update `src/auth/mockAuthService.ts` imports to point to your new service
+5. Run database migrations (see Data Model below)
+
+The `AuthContext` interface does not change — only the service implementation.
+
+---
+
+## Weather API Setup
+
+The weather page uses **demo data** by default (`src/data/seedData.ts`).
+
+To connect a real weather API:
+
+1. Sign up for [Open-Meteo](https://open-meteo.com/) (free) or [OpenWeatherMap](https://openweathermap.org/)
+2. Add a backend endpoint: `GET /api/v1/weather?lat=...&lng=...`
+3. Cache responses appropriately (e.g. 30 min TTL)
+4. Update `src/pages/portal/WeatherPage.tsx` — replace `DEMO_WEATHER` with a fetch call
+5. **Never expose API keys in client code** — all weather API calls must go through the backend
+
+```env
+# Backend .env
+WEATHER_API_KEY=your_key_here
+WEATHER_PROVIDER=open-meteo
+```
+
+---
+
+## AI Model Setup
+
+### Option A: Amazon Bedrock (default)
+
+- Ensure your AWS credentials have `bedrock:InvokeModel` permission
+- Set `DIAGNOSIS_PROVIDER=bedrock` and configure AWS env vars
+- The backend sends leaf images to `amazon.nova-lite-v1:0` with a structured prompt
+- No model file required
+
+### Option B: Local ONNX
+
+1. Train the model: `python backend/train/train.py` (requires PlantVillage dataset)
+2. Place the output at `backend/model/plantvillage.onnx`
+3. Set `DIAGNOSIS_PROVIDER=onnx` and `MODEL_PATH=./model/plantvillage.onnx`
+4. Install ONNX dependencies: `pip install -r backend/requirements-onnx.txt`
+
+### AI Farm Assistant
+
+The assistant uses a **mock response generator** in `src/pages/portal/AssistantPage.tsx`.
+
+To connect a real LLM:
+1. Add a backend endpoint: `POST /api/v1/chat`
+2. Accept `{ messages: ChatMessage[], locale: string }`, return `{ reply: string }`
+3. Connect OpenAI, Anthropic, or AWS Bedrock on the backend
+4. Update `generateAIResponse()` in `AssistantPage.tsx` to call `/api/v1/chat`
+
+---
+
+## Storage
+
+Scan images are currently stored as **data URIs / blob URLs** in the browser for the demo.
+
+For production:
+1. Upload images to **private S3 / Supabase Storage / Cloudflare R2**
+2. Store time-limited signed URLs in the database
+3. Add a backend endpoint: `POST /api/v1/upload` → returns signed URL
+4. Update `PortalScanPage.tsx` to upload before analysis
+
+---
+
+## Billing Integration
+
+The Pro plan upgrade flow is a **placeholder** (`plans-billing-notice` in `PlansPage.tsx`).
+
+To enable real payments:
+1. Set up a Stripe account and add `STRIPE_SECRET_KEY` to backend `.env`
+2. Add `VITE_STRIPE_PUBLIC_KEY` to frontend `.env`
+3. Create a backend checkout endpoint: `POST /api/v1/checkout/session`
+4. Update `PlansPage.tsx` to call the checkout endpoint
+5. Add a webhook handler: `POST /api/v1/webhooks/stripe` to update user plan in DB
+
+---
+
+## Data Model
+
+The current mock uses `localStorage`. For production, use a relational database (PostgreSQL recommended) with these tables:
+
+```sql
+users, farmer_profiles, farms, crops,
+scan_records, scan_images, disease_results,
+weather_cache, weather_alerts, outbreak_aggregates,
+chat_conversations, chat_messages,
+usage_quotas, credit_ledger, subscriptions,
+notifications, consent_records, translations
+```
+
+All tables should use **Row Level Security** (Supabase) or equivalent to ensure farmers can only access their own data.
+
+---
+
+## Deployment
+
+### Frontend (Vercel)
+
+```bash
+# Build
+npm run build
+
+# Deploy
+vercel --prod
+```
+
+`vercel.json` is already configured with SPA rewrites. No additional configuration needed.
+
+### Backend (AWS Lambda)
+
+```bash
+cd deploy
+python build_lambda_package.py
+python deploy_backend.py
+```
+
+Or run as a standalone FastAPI server:
 
 ```bash
 cd backend
-pip install -r requirements.txt
-uvicorn main:app --reload --port 8000
+uvicorn main:app --host 0.0.0.0 --port 8000
 ```
-
-The server must be started from inside `backend/` — the module is imported as `main:app`. Interactive
-API docs are then available at `http://localhost:8000/docs`.
-
-### Endpoints
-
-| Method | Path               | Description                                                                                                       |
-| ------ | ------------------ | ----------------------------------------------------------------------------------------------------------------- |
-| POST   | `/api/v1/diagnose` | Accepts a leaf image (multipart file or base64 data URL) and returns the diagnosis JSON.                          |
-| GET    | `/api/v1/health`   | Liveness check plus the currently active diagnosis provider.                                                       |
-
-`POST /api/v1/diagnose` accepts the image in either of two form fields — a multipart file upload in
-`image`, or a base64 data URL string in `image_b64` (this is what the browser sends). It also accepts
-optional `crop` and `location` hints. It returns JSON shaped like:
-
-```json
-{
-  "crop": "Tomato",
-  "disease": "Late Blight",
-  "confidence": 91.2,
-  "severity": "High",
-  "status": "Affected",
-  "recommendations": ["Act immediately — late blight can collapse a tomato crop within a week.", "..."]
-}
-```
-
-Images are limited to 10 MB. The frontend file picker offers JPEG, PNG and WebP, and the backend
-decodes anything Pillow can read. Note that **HEIC is not currently decodable** — see the limitations
-section.
 
 ---
 
-## How the diagnosis works today
+## Supported Languages
 
-The backend calls **Amazon Bedrock** using an **Amazon Nova vision model**:
+| Code | Language | Region |
+|------|----------|--------|
+| `en` | English | All |
+| `lg` | Luganda | Central Uganda (Buganda) |
+| `nyn` | Runyankole | Western Uganda (Ankole) |
 
-1. The uploaded image is sent to the model.
-2. The model is constrained to answer with exactly one of the 15 PlantVillage class labels.
-3. `backend/taxonomy.py` maps that label to the crop, display name, severity, status and
-   agronomic recommendations returned to the site.
+Language selector is available during sign-up, onboarding, and in Settings / Profile. The assistant supports switching language mid-conversation.
 
-There is **no local model file and no GPU** involved in this path — inference happens in AWS.
-
----
-
-## AWS setup (required)
-
-This is the part that trips people up. Work through it in order.
-
-1. **Install and configure the AWS CLI**, or set the credentials as environment variables. Confirm
-   they resolve before touching the app:
-
-   ```bash
-   aws configure          # or: export AWS_ACCESS_KEY_ID=... AWS_SECRET_ACCESS_KEY=... AWS_DEFAULT_REGION=us-east-1
-   aws sts get-caller-identity
-   ```
-
-2. **Grant the AWS Marketplace permissions to the IAM principal.** Amazon Bedrock model access is
-   enabled automatically the first time you invoke a model, but that first-time auto-enablement
-   calls AWS Marketplace under the hood, so the principal needs:
-
-   - `aws-marketplace:Subscribe`
-   - `aws-marketplace:Unsubscribe`
-   - `aws-marketplace:ViewSubscriptions`
-
-   Without them, the first call fails with `AccessDeniedException`.
-
-3. **Know which models need the use-case form.** Amazon Nova models are Amazon first-party models
-   and do **not** require the Anthropic first-time use-case form. Anthropic Claude models on Bedrock
-   **do** require a one-time use-case submission before first use.
-
-4. **Grant `bedrock:InvokeModel`** to the IAM principal.
-
-5. **Pick a region that has a Bedrock *runtime* endpoint.** Africa (Cape Town) `af-south-1` does
-   **not**. Use `us-east-1` unless you have a specific reason not to.
-
-6. **Never put AWS credentials in the frontend.** The browser must never talk to AWS directly — the
-   backend holds the credentials and is the only thing that calls Bedrock.
+To add a new language: add a new locale key to `src/i18n/translations.ts` and add it to the `LOCALE_LABELS` record.
 
 ---
 
-## Configuration
+## Responsible AI Disclaimer
 
-Copy the template and adjust it:
-
-```bash
-cp backend/.env.example backend/.env      # Windows: copy backend\.env.example backend\.env
-```
-
-`backend/.env` is gitignored and must never be committed. Variables:
-
-| Variable                | Purpose                                                                                          |
-| ----------------------- | ------------------------------------------------------------------------------------------------ |
-| `DIAGNOSIS_PROVIDER`    | Which engine to use: `bedrock` (default, calls AWS) or `onnx` (local model file).                 |
-| `AWS_REGION`            | Region for the Bedrock runtime endpoint. Must have one — `us-east-1` is the default.              |
-| `AWS_PROFILE`           | Optional named profile from `~/.aws/credentials`; leave blank to use the default chain.           |
-| `BEDROCK_MODEL_ID`      | Amazon Nova model id that accepts **image** input (e.g. `amazon.nova-lite-v1:0`).                 |
-| `BEDROCK_MAX_IMAGE_DIM` | Longest edge (px) an uploaded image is downscaled to before being sent to Bedrock (cost/latency). |
-| `BEDROCK_MAX_TOKENS`    | Max tokens the model may generate for its JSON answer.                                            |
-| `BEDROCK_TEMPERATURE`   | Sampling temperature; `0` is correct for a classification task.                                   |
-| `ALLOWED_ORIGINS`       | Comma-separated browser origins allowed to call the API (defaults to the local dev servers).      |
-| `MODEL_PATH`            | Path to a local `.onnx` file — only used when `DIAGNOSIS_PROVIDER=onnx`.                          |
-
-AWS credentials are not read from `.env` by the application: the AWS SDK resolves them through its
-normal credential chain (AWS CLI config, environment variables, or an IAM role on the host). If the
-CLI is already configured, leave the AWS keys out of `.env` entirely.
+AI assessments support, but do not replace, qualified agricultural advice or local extension officers. SmartFarmer is a decision-support tool. For high-risk or unclear situations, always consult a qualified agronomist or your local extension officer.
 
 ---
 
-## Deploying the backend to AWS Lambda
-
-The backend runs on Lambda behind an API Gateway HTTP API, so it does not depend on your machine
-being on. Lambda and API Gateway bill per request with no idle charge, so an idle demo costs
-approximately nothing.
-
-```bash
-python deploy/build_lambda_package.py     # builds deploy/build/smart-farmer-lambda.zip
-python deploy/deploy_backend.py --check   # reports missing IAM permissions, creates nothing
-python deploy/deploy_backend.py --allowed-origins https://your-site.vercel.app
-```
-
-`build_lambda_package.py` installs the dependencies as **manylinux wheels**, because Lambda runs
-Linux and this project is often built on Windows. Installing normally would bundle Windows
-binaries that fail to import at runtime. The script also verifies the bundle contains Linux shared
-objects, contains no Windows `.pyd` files, and holds every module the handler imports, so a broken
-package fails at build time rather than on the first request.
-
-`deploy_backend.py` is idempotent. It creates or updates an IAM execution role, the Lambda function,
-the API Gateway API, a `$default` route, stage throttling, and reserved concurrency. Re-running it
-updates in place rather than duplicating.
-
-### What protects your AWS bill
-
-The `/api/v1/diagnose` endpoint costs money per call, so two ceilings are set by default:
-
-- **Reserved concurrency** (default 5) is a hard cap on simultaneous executions, and therefore a
-  hard cap on how fast you can be billed. This is the control that actually bounds spend.
-- **Stage throttling** (default 5/s sustained, 10 burst) rejects floods before they reach Lambda.
-
-Add `--budget-email you@example.com` to also get an email alert at 80% of a monthly budget. Note a
-budget **alerts**, it does not stop spending; only the concurrency cap does that.
-
-CORS is **not** a security control here. It is a browser rule, and anything that is not a browser
-ignores it entirely. It exists so the legitimate frontend works, not to keep anyone out.
-
-### Pointing the frontend at it
-
-The deploy prints an API base URL. Set it in your frontend host as:
+## Project Structure
 
 ```
-VITE_API_BASE = https://<api-id>.execute-api.<region>.amazonaws.com
+smart-farmer/
+├── src/
+│   ├── auth/              # AuthContext, mockAuthService
+│   ├── components/        # Shared UI components + Icons
+│   ├── data/              # Static data + seedData
+│   ├── i18n/              # translations.ts (en/lg/nyn)
+│   ├── pages/
+│   │   ├── auth/          # SignIn, SignUp, Onboarding
+│   │   └── portal/        # Dashboard, Scan, History, Weather, Outbreaks,
+│   │                      # Profile, Assistant, Plans, Settings
+│   ├── portal/            # PortalLayout, ProtectedRoute
+│   ├── router/            # Custom SPA router
+│   ├── services/          # diagnosisService (API client)
+│   ├── types/             # TypeScript interfaces
+│   └── App.tsx            # Root: RouterProvider > AuthProvider > AppShell
+├── backend/               # FastAPI backend
+├── deploy/                # AWS Lambda deployment scripts
+├── public/                # Static assets (add demo-leaf.jpg here)
+└── vercel.json            # SPA rewrite rules
 ```
 
-Two things to know. Vite bakes environment variables in at **build time**, not runtime, so you must
-redeploy after changing it. And the `/api` proxy in `vite.config.ts` only exists during `vite dev`;
-it does not apply to a production build, so without `VITE_API_BASE` the deployed site will call its
-own origin and 404.
-
-`ALLOWED_ORIGINS` is matched exactly, so Vercel **preview** deployments (the branch-specific URLs)
-are CORS-blocked by default. Pass the production domain, or extend `ALLOWED_ORIGINS` to cover the
-preview pattern.
-
 ---
 
-## Optional: local ONNX inference
-
-There is an optional local-inference path, and it is **not the default**:
-
-- Set `DIAGNOSIS_PROVIDER=onnx` and point `MODEL_PATH` at an ONNX model file.
-- The model file is **gitignored and is not present in this repository** (`backend/model/` ships
-  empty), so this path does nothing until someone trains a model and drops the file in.
-- It requires extra dependencies (see `backend/requirements-onnx.txt`).
-- `backend/train/train.py` is the training script: it fine-tunes EfficientNet-B0 on the PlantVillage
-  dataset and exports `plantvillage.onnx`. See the docstring in that file for the dataset layout and
-  how to run it.
-
----
-
-## Known limitations
-
-- **Limited crop coverage.** The demo classifies only the 15 PlantVillage classes, which cover
-  Tomato, Potato and Bell Pepper. Cassava, Maize, Beans, Banana, Coffee and Rice are **not**
-  supported by the model yet, even though the site markets them.
-- **Confidence is not calibrated.** The confidence figure is a model self-report, not a calibrated
-  probability. With Bedrock this is the model's own estimate; with the ONNX provider it is a genuine
-  softmax probability. Treat them differently.
-- **HEIC uploads fail.** `validateImage()` in `src/services/diagnosisService.ts` lists `image/heic`
-  as supported, but Pillow cannot decode HEIC without the `pillow-heif` package, so an iPhone photo
-  in HEIC format passes client-side validation and then fails on decode. Either install `pillow-heif`
-  or drop `image/heic` from that list.
-- **The sample image is not shipped.** The Product Demo's "Use Demo Image" button fetches
-  `public/demo-leaf.jpg`, and no such file is in this repository, so the button shows an error until
-  you drop a leaf photo (JPEG, PNG or WebP) at that path.
-- **Decision support only.** Results are an aid, not a replacement for an agronomist.
+*Built for African smallholder farmers. Designed to work on low-cost Android phones and slow connections.*
