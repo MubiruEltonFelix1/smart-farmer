@@ -63,6 +63,7 @@ REQUIREMENTS = BACKEND_DIR / "requirements-lambda.txt"
 APP_MODULES = [
     "main.py",
     "lambda_handler.py",
+    "bedrock_chat.py",
     "bedrock_inference.py",
     "inference.py",
     "taxonomy.py",
@@ -74,6 +75,7 @@ APP_MODULES = [
 REQUIRED_IN_ZIP = [
     "main.py",
     "lambda_handler.py",
+    "bedrock_chat.py",
     "bedrock_inference.py",
     "taxonomy.py",
     "PIL/Image.py",
