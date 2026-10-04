@@ -1,10 +1,13 @@
 /**
- * translations.ts — UI strings for the crop diagnosis page.
+ * translations.ts — UI strings for the entire Smart Farmer site.
  *
  * Supported locales:
  *   en  — English
  *   lg  — Luganda (Central Uganda / Buganda region)
  *   nyn — Runyankole / Lunyankole (Western Uganda / Ankole region)
+ *
+ * NOTE: The original DiagnosisTranslations block is preserved unchanged.
+ * SiteTranslations (added below) covers all other pages / components.
  */
 
 export type Locale = 'en' | 'lg' | 'nyn';
