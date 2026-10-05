@@ -69,7 +69,7 @@ MAX_BYTES = 10 * 1024 * 1024  # 10 MB
 
 # Max characters accepted in a single chat message from the frontend.
 # Long enough for a detailed question; short enough to stop prompt-stuffing.
-MAX_USER_CHAT_MSG_CHARS = 2000
+MAX_USER_CHAT_MSG_CHARS = 20000
 MAX_ASSISTANT_CHAT_MSG_CHARS = 12000
 # Max number of messages the frontend may send per request (full history).
 MAX_CHAT_HISTORY   = 80  # 40 turns × 2
