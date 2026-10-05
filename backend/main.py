@@ -25,6 +25,7 @@ import base64
 import importlib
 import os
 import secrets
+from pydantic import BaseModel, Field, field_validator
 import sys
 from contextlib import asynccontextmanager
 from pathlib import Path
@@ -68,7 +69,8 @@ MAX_BYTES = 10 * 1024 * 1024  # 10 MB
 
 # Max characters accepted in a single chat message from the frontend.
 # Long enough for a detailed question; short enough to stop prompt-stuffing.
-MAX_CHAT_MSG_CHARS = 2000
+MAX_USER_CHAT_MSG_CHARS = 2000
+MAX_ASSISTANT_CHAT_MSG_CHARS = 12000
 # Max number of messages the frontend may send per request (full history).
 MAX_CHAT_HISTORY   = 80  # 40 turns × 2
 
@@ -336,8 +338,26 @@ async def diagnose(
 # ─── Chat request / response models ──────────────────────────────────────────
 class ChatMessageIn(BaseModel):
     """A single turn in the conversation history sent by the frontend."""
-    role:    Literal["user", "assistant"]
-    content: str = Field(..., max_length=MAX_CHAT_MSG_CHARS)
+    role: Literal["user", "assistant"]
+    content: str = Field(..., min_length=1)
+
+    @field_validator("content")
+    @classmethod
+    def validate_content_length(cls, value: str, info):
+        role = info.data.get("role")
+
+        limit = (
+            MAX_ASSISTANT_CHAT_MSG_CHARS
+            if role == "assistant"
+            else MAX_USER_CHAT_MSG_CHARS
+        )
+
+        if len(value) > limit:
+            raise ValueError(
+                f"{role or 'message'} content must be at most {limit} characters"
+            )
+
+        return value
 
 
 class ChatRequest(BaseModel):
