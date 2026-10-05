@@ -27,6 +27,7 @@ import os
 import secrets
 import sys
 from contextlib import asynccontextmanager
+from pathlib import Path
 from typing import Literal
 
 from dotenv import load_dotenv
@@ -46,7 +47,7 @@ for _stream in (sys.stdout, sys.stderr):
     except (AttributeError, ValueError):  # not a TextIOWrapper, or already detached
         pass
 
-load_dotenv()
+load_dotenv(Path(__file__).resolve().with_name(".env"))
 
 # ─── Config ──────────────────────────────────────────────────────────────────
 PROVIDER_NAME = os.getenv("DIAGNOSIS_PROVIDER", "bedrock").strip().lower() or "bedrock"
@@ -166,24 +167,47 @@ async def lifespan(app: FastAPI):
             "\n   See backend/.env.example for the configuration this needs.\n"
         )
 
-    # ── Chat provider (bedrock_chat) ──────────────────────────────────────────
+    # ── Chat provider (bedrock_chat or mock_chat) ─────────────────────────────
+    # Prefer the mock provider for local development when explicitly enabled.
+    # Otherwise, still fall back gracefully if AWS credentials/config are missing
+    # so the assistant remains usable without a full Bedrock setup.
     try:
-        import bedrock_chat as _chat_module  # noqa: PLC0415
-        chat_ready, chat_detail = _chat_module.startup()
-        app.state.chat_module = _chat_module
-        app.state.chat_ready  = chat_ready
-        app.state.chat_detail = chat_detail
-        if chat_ready:
-            print(f"[ok] Chat provider ready - {chat_detail}")
+        use_mock_chat = os.getenv("ENABLE_MOCK_CHAT", "").strip().lower() in ("1", "true", "yes")
+
+        if use_mock_chat:
+            import mock_chat as _chat_module  # noqa: PLC0415
+            chat_ready, chat_detail = _chat_module.startup()
+            app.state.chat_module = _chat_module
+            app.state.chat_ready = chat_ready
+            app.state.chat_detail = chat_detail
+            if chat_ready:
+                print("[ok] Chat provider ready - mock chat fallback enabled")
+            else:
+                print(f"\n[warn] Mock chat provider is not ready - {chat_detail}\n")
         else:
-            print(
-                f"\n[warn] Chat provider is not ready - {chat_detail}"
-                "\n   /api/v1/chat will return 503 until credentials are configured.\n"
-            )
+            import bedrock_chat as _chat_module  # noqa: PLC0415
+            chat_ready, chat_detail = _chat_module.startup()
+            if chat_ready:
+                app.state.chat_module = _chat_module
+                app.state.chat_ready = True
+                app.state.chat_detail = chat_detail
+                print(f"[ok] Chat provider ready - {chat_detail}")
+            else:
+                import mock_chat as _fallback_module  # noqa: PLC0415
+                fallback_ready, fallback_detail = _fallback_module.startup()
+                app.state.chat_module = _fallback_module
+                app.state.chat_ready = fallback_ready
+                app.state.chat_detail = (
+                    f"Bedrock chat unavailable ({chat_detail}); using mock chat fallback."
+                )
+                print(
+                    f"\n[warn] Bedrock chat is not ready - {chat_detail}\n"
+                    f"   Falling back to local mock chat. ({fallback_detail})\n"
+                )
     except ImportError as exc:
         app.state.chat_module = None
-        app.state.chat_ready  = False
-        app.state.chat_detail = f"bedrock_chat could not be imported: {exc}"
+        app.state.chat_ready = False
+        app.state.chat_detail = f"chat module could not be imported: {exc}"
         print(f"\n[warn] Chat module unavailable: {exc}\n")
 
     yield
