@@ -1967,6 +1967,29 @@ h1,h2,h3,h4,h5,h6 { font-family: var(--font-heading); color: var(--color-dark); 
   font-size: 0.875rem; line-height: 1.65; background: var(--color-surface);
   color: var(--color-dark);
 }
+.assistant-msg-markdown { display: flex; flex-direction: column; gap: 8px; }
+.assistant-md-paragraph,
+.assistant-md-heading { margin: 0; }
+.assistant-md-heading { font-size: 0.98rem; font-weight: 800; line-height: 1.35; }
+.assistant-md-list {
+  margin: 0;
+  padding-left: 1.15rem;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.assistant-md-list-item { margin: 0; }
+.assistant-md-code {
+  padding: 0 5px;
+  border-radius: 4px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 0.92em;
+  white-space: break-spaces;
+}
+.assistant-msg--assistant .assistant-md-code { background: rgba(45,106,79,0.09); }
+.assistant-msg--user .assistant-md-code { background: rgba(255,255,255,0.18); }
+.assistant-md-strong { font-weight: 800; }
+.assistant-md-em { font-style: italic; }
 .assistant-msg--user .assistant-msg-bubble { background: var(--color-green); color: white; border-radius: var(--radius-lg) var(--radius-lg) 2px var(--radius-lg); }
 .assistant-msg--error .assistant-msg-bubble { background: rgba(181,69,27,0.08); color: #b5451b; }
 .assistant-msg-time { display: block; font-size: 0.68rem; opacity: 0.6; margin-top: 4px; }

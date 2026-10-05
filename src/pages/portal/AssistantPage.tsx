@@ -11,6 +11,129 @@ import {
 
 function uid() { return Math.random().toString(36).slice(2) + Date.now().toString(36); }
 
+function renderAssistantMarkdown(content: string) {
+  const blocks: JSX.Element[] = [];
+  const lines = content.replace(/\r\n/g, '\n').split('\n');
+
+  let paragraph: string[] = [];
+  let listItems: Array<{ ordered: boolean; text: string }> | null = null;
+
+  function flushParagraph() {
+    if (paragraph.length === 0) return;
+    blocks.push(
+      <p key={`p-${blocks.length}`} className="assistant-md-paragraph">
+        {renderInlineMarkdown(paragraph.join(' ').trim())}
+      </p>,
+    );
+    paragraph = [];
+  }
+
+  function flushList() {
+    if (!listItems || listItems.length === 0) return;
+
+    const ordered = listItems[0].ordered;
+    const ListTag = ordered ? 'ol' : 'ul';
+    blocks.push(
+      <ListTag
+        key={`list-${blocks.length}`}
+        className={`assistant-md-list${ordered ? ' assistant-md-list--ordered' : ''}`}
+      >
+        {listItems.map((item, index) => (
+          <li key={index} className="assistant-md-list-item">
+            {renderInlineMarkdown(item.text)}
+          </li>
+        ))}
+      </ListTag>,
+    );
+    listItems = null;
+  }
+
+  for (const rawLine of lines) {
+    const line = rawLine.trimEnd();
+    const headingMatch = line.match(/^(#{1,3})\s+(.*)$/);
+    const bulletMatch = line.match(/^[-*+]\s+(.*)$/);
+    const orderedMatch = line.match(/^\d+[.)]\s+(.*)$/);
+
+    if (line.trim() === '') {
+      flushParagraph();
+      flushList();
+      continue;
+    }
+
+    if (headingMatch) {
+      flushParagraph();
+      flushList();
+      blocks.push(
+        <p key={`h-${blocks.length}`} className="assistant-md-heading">
+          {renderInlineMarkdown(headingMatch[2])}
+        </p>,
+      );
+      continue;
+    }
+
+    if (bulletMatch || orderedMatch) {
+      flushParagraph();
+      const ordered = Boolean(orderedMatch);
+      const text = (bulletMatch?.[1] ?? orderedMatch?.[1] ?? '').trim();
+      if (!listItems || listItems[0].ordered !== ordered) {
+        flushList();
+        listItems = [];
+      }
+      listItems.push({ ordered, text });
+      continue;
+    }
+
+    flushList();
+    paragraph.push(line.trim());
+  }
+
+  flushParagraph();
+  flushList();
+
+  return blocks;
+}
+
+function renderInlineMarkdown(text: string) {
+  const parts: React.ReactNode[] = [];
+  const tokenPattern = /(`[^`]+`|\*\*[^*]+\*\*|__[^_]+__|\*[^*]+\*|_[^_]+_)/g;
+  const segments = text.split(tokenPattern);
+
+  segments.forEach((segment, index) => {
+    if (!segment) return;
+
+    if (segment.startsWith('`') && segment.endsWith('`')) {
+      parts.push(
+        <code key={index} className="assistant-md-code">
+          {segment.slice(1, -1)}
+        </code>,
+      );
+      return;
+    }
+
+    if ((segment.startsWith('**') && segment.endsWith('**')) || (segment.startsWith('__') && segment.endsWith('__'))) {
+      parts.push(
+        <strong key={index} className="assistant-md-strong">
+          {segment.slice(2, -2)}
+        </strong>,
+      );
+      return;
+    }
+
+    if ((segment.startsWith('*') && segment.endsWith('*')) || (segment.startsWith('_') && segment.endsWith('_'))) {
+      parts.push(
+        <em key={index} className="assistant-md-em">
+          {segment.slice(1, -1)}
+        </em>,
+      );
+      return;
+    }
+
+    parts.push(segment);
+  });
+
+  return parts;
+}
+
 /**
  * System prompt lives in backend/bedrock_chat.py (SMARTFARMER_SYSTEM_PROMPT).
  * The frontend sends the conversation history; the backend owns the prompt.
@@ -235,9 +358,11 @@ export default function AssistantPage() {
                 <div className="assistant-msg-avatar"><IconLeaf size={14} /></div>
               )}
               <div className="assistant-msg-bubble">
-                {msg.content.split('\n').map((line, i) => (
-                  <p key={i} style={{ margin: i > 0 ? '4px 0 0' : 0 }}>{line}</p>
-                ))}
+                {msg.role === 'assistant'
+                  ? <div className="assistant-msg-markdown">{renderAssistantMarkdown(msg.content)}</div>
+                  : msg.content.split('\n').map((line, i) => (
+                      <p key={i} style={{ margin: i > 0 ? '4px 0 0' : 0 }}>{line}</p>
+                    ))}
                 <span className="assistant-msg-time">
                   {new Date(msg.timestamp).toLocaleTimeString('en', { hour: '2-digit', minute: '2-digit' })}
                   {msg.creditConsumed && ' · 1 credit used'}
