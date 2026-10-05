@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
+import type { ReactNode } from 'react';
 import { useAuth } from '../../auth/AuthContext';
 import { t, LOCALE_LABELS, type Locale } from '../../i18n/translations';
 import { mockAuthService } from '../../auth/mockAuthService';
@@ -12,7 +13,7 @@ import {
 function uid() { return Math.random().toString(36).slice(2) + Date.now().toString(36); }
 
 function renderAssistantMarkdown(content: string) {
-  const blocks: JSX.Element[] = [];
+  const blocks: ReactNode[] = [];
   const lines = content.replace(/\r\n/g, '\n').split('\n');
 
   let paragraph: string[] = [];
@@ -94,7 +95,7 @@ function renderAssistantMarkdown(content: string) {
 }
 
 function renderInlineMarkdown(text: string) {
-  const parts: React.ReactNode[] = [];
+  const parts: ReactNode[] = [];
   const tokenPattern = /(`[^`]+`|\*\*[^*]+\*\*|__[^_]+__|\*[^*]+\*|_[^_]+_)/g;
   const segments = text.split(tokenPattern);
 
