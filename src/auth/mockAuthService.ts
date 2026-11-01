@@ -65,7 +65,7 @@ function makeQuota(userId: string, plan: SubscriptionPlan): UsageQuota {
 
 const DEFAULT_FARM: Farm = {
   id: 'farm-001',
-  name: 'Demo Farm',
+  name: 'Asiimwe Farm — Kakiika',
   district: 'Mbarara',
   subCounty: 'Kakiika',
   parish: 'Rwebikoona',
@@ -73,8 +73,8 @@ const DEFAULT_FARM: Farm = {
   gpsLat: -0.6017,
   gpsLng: 30.6545,
   gpsConsent: true,
-  mainCrops: ['Cassava', 'Maize', 'Banana'],
-  farmSizeValue: '2',
+  mainCrops: ['Matooke (Banana)', 'Cassava', 'Maize', 'Beans', 'Groundnut'],
+  farmSizeValue: '3',
   farmSizeUnit: 'acres',
   farmingType: 'Mixed farming',
   isDefault: true,
@@ -85,9 +85,9 @@ export const DEMO_USER_ID = 'demo-farmer-001';
 
 const DEMO_USER: User = {
   id:        DEMO_USER_ID,
-  email:     'demo@smartfarmer.ai',
-  phone:     '+256700000001',
-  name:      'Demo Farmer',
+  email:     'asiimwe.robert@kebeera.ai',
+  phone:     '+256772450821',
+  name:      'Asiimwe Robert',
   locale:    'en',
   plan:      'free',
   createdAt: '2026-01-15T08:00:00Z',
@@ -96,9 +96,9 @@ const DEMO_USER: User = {
 
 const DEMO_PROFILE: FarmerProfile = {
   userId:              DEMO_USER_ID,
-  farmerName:          'Demo Farmer',
-  phone:               '+256700000001',
-  email:               'demo@smartfarmer.ai',
+  farmerName:          'Asiimwe Robert',
+  phone:               '+256772450821',
+  email:               'asiimwe.robert@kebeera.ai',
   preferredLocale:     'en',
   farms:               [DEFAULT_FARM],
   notificationsEnabled: true,
