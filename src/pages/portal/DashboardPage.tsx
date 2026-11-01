@@ -100,7 +100,6 @@ export default function DashboardPage() {
   const topAlert = DEMO_OUTBREAKS.find(o => o.alertLevel !== 'info');
   const scanUsed  = quota?.scansUsedToday ?? 0;
   const scanLimit = quota?.scanLimitDaily ?? 3;
-  const chatLeft  = (quota?.chatLimitDaily ?? 5) - (quota?.chatCreditsUsedToday ?? 0);
   const farmHealth = computeFarmHealth(scans);
   const farmName  = profile?.farms?.[0]?.name ?? 'My Farm';
   const district  = profile?.farms?.[0]?.district ?? 'Mbarara';
