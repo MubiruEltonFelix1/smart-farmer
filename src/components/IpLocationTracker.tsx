@@ -73,7 +73,7 @@ export default function IpLocationTracker({
         style={{
           display: "flex",
           gap: 0.5,
-          marginBottom: 0.75rem,
+          marginBottom: "0.75rem",
           flexWrap: "wrap",
         }}
       >
@@ -118,10 +118,10 @@ export default function IpLocationTracker({
           <div
             style={{
               display: "flex",
-              gap: 0.75rem,
+              gap: "0.75rem",
               alignItems: "center",
               fontSize: "0.9rem",
-              marginBottom: 0.75rem,
+              marginBottom: "0.75rem",
             }}
           >
             <span style={{ fontWeight: 600, color: "#2d6a4f" }}>{loc.ip}</span>
