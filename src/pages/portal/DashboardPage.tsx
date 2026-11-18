@@ -5,7 +5,7 @@ import { t } from '../../i18n/translations';
 import { mockAuthService } from '../../auth/mockAuthService';
 import { DEMO_WEATHER, DEMO_OUTBREAKS } from '../../data/seedData';
 import type { ScanRecord } from '../../types';
-import IpLocationTracker from '../../components/IpLocationTracker';
+import DistrictDiseaseMap from '../../components/DistrictDiseaseMap';
 import {
   IconScan, IconLeaf, IconArrowRight, IconWarning,
   IconDroplets, IconCheck, IconClock,
@@ -335,7 +335,7 @@ export default function DashboardPage() {
         <div className="dash-section__header">
           <h3 className="dash-section__title">Your Location</h3>
         </div>
-        <IpLocationTracker />
+        <DistrictDiseaseMap />
       </div>
 
       {/* ── AI disclaimer ── */}

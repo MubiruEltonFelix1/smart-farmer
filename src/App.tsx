@@ -29,7 +29,7 @@ import ProfilePage    from './pages/portal/ProfilePage';
 import AssistantPage  from './pages/portal/AssistantPage';
 import PlansPage      from './pages/portal/PlansPage';
 import SettingsPage   from './pages/portal/SettingsPage';
-import IpLocationTracker from './components/IpLocationTracker';
+import DistrictDiseaseMap from './components/DistrictDiseaseMap';
 
 import './index.css';
 
@@ -70,7 +70,7 @@ const ROUTES = [
   { path: '/portal/assistant', element: withPortal(AssistantPage,  'AI Farm Assistant'), exact: false },
   { path: '/portal/plans',     element: withPortal(PlansPage,      'Plans & Credits'),   exact: false },
   { path: '/portal/settings',  element: withPortal(SettingsPage,   'Settings'),          exact: false },
-  { path: '/portal/location',  element: withPortal(IpLocationTracker, 'IP Location'),   exact: false },
+  { path: '/portal/location',  element: withPortal(DistrictDiseaseMap, 'District Disease Map'), exact: false },
 ];
 
 /* ── AppShell — public layout (Navbar + Footer) ─────────── */
