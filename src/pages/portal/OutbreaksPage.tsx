@@ -7,6 +7,7 @@ import {
   IconWarning, IconTrendingUp, IconCheck, IconInfo,
   IconMapPin, IconShield, IconUsers,
 } from '../../components/Icons';
+import DistrictDiseaseMap from '../../components/DistrictDiseaseMap';
 
 function alertStyle(level: string) {
   if (level === 'attention') return { bg: 'rgba(181,69,27,0.08)', border: '#b5451b', badge: '#b5451b', badgeBg: 'rgba(181,69,27,0.12)' };
@@ -36,12 +37,15 @@ export default function OutbreaksPage() {
 
   return (
     <div className="outbreak-page">
-      {/* Privacy note */}
-      <div className="outbreak-privacy">
-        <IconShield size={14} />
-        <p>{t(locale, 'outbreakPrivacyNote')}</p>
-      </div>
-
+      {/* Privacy note */}
+      <div className="outbreak-privacy">
+        <IconShield size={14} />
+        <p>{t(locale, 'outbreakPrivacyNote')}</p>
+      </div>
+
+      {/* District disease map */}
+      <DistrictDiseaseMap />
+
       {/* Filters */}
       <div className="outbreak-filters">
         <select className="auth-input auth-select"
